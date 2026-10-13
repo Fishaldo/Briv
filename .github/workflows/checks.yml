@@ -1,0 +1,46 @@
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Typecheck, tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test
+
+      - name: Migrations match the schema
+        run: |
+          pnpm --filter @briv/db generate
+          if [ -n "$(git status --porcelain packages/db/migrations)" ]; then
+            echo "The schema changed without a migration. Run pnpm db:generate and commit the result."
+            git status --porcelain packages/db/migrations
+            exit 1
+          fi
+
+      - name: Build the server and the website
+        run: pnpm build

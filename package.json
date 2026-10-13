@@ -1,0 +1,19 @@
+{
+  "name": "briv",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "typecheck": "pnpm -r --workspace-concurrency=1 run typecheck",
+    "test": "pnpm -r run test",
+    "build": "pnpm -r run build",
+    "check": "pnpm typecheck && pnpm test && pnpm build",
+    "dev:api": "pnpm --filter @briv/api dev",
+    "dev:app": "pnpm --filter @briv/app start",
+    "db:generate": "pnpm --filter @briv/db generate",
+    "db:migrate": "pnpm --filter @briv/db migrate"
+  }
+}
