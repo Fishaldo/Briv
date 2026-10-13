@@ -60,4 +60,4 @@ For the app: `EXPO_PUBLIC_API_URL` (the server's address) and `EXPO_PUBLIC_SIGN_
 
 ### Changing the name
 
-Briv is a working name. To change it, search the code for `Briv` (screen text, emails, sign-in), `briv` (the app's link scheme and slug in `apps/app/app.json`, `APP_SCHEME`), and `@briv/` (package names).
+Briv is a working name. It lives in one place in the code, `packages/core/src/brand.ts`, plus the app's own details in `apps/app/app.json` (name, slug, scheme, web names and the location wording). The package names (`@briv/...`) are internal and can stay. The store IDs, when they are set, use a neutral name, because the App Store and Google Play cannot change them after launch.

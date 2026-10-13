@@ -1,0 +1,10 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Expo works with isolated installs, but hoisted is the safest choice for
+# React Native's native builds. Change it later if a better setup comes along.
+nodeLinker: hoisted
+
+onlyBuiltDependencies:
+  - esbuild

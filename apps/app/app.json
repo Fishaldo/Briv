@@ -1,0 +1,57 @@
+{
+  "expo": {
+    "name": "Briv",
+    "slug": "briv",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "briv",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Briv uses your location once to find your town, so nearby deals come first. Only the town is saved."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E3EFE8",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "name": "Briv",
+      "shortName": "Briv",
+      "backgroundColor": "#F3F4F0",
+      "themeColor": "#1E5B43",
+      "lang": "en-GB"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F3F4F0",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 76
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Briv uses your location once to find your town, so nearby deals come first. Only the town is saved."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
