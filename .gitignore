@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.expo/
+web-build/
+apps/app/ios/
+apps/app/android/
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store
+coverage/
+.pglite/
+screenshots/
+*.generated.ts
