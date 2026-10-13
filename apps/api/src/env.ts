@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { APP_NAME, APP_SCHEME } from "@briv/core";
 
 /*
  * Everything the server reads from its environment, checked once at start.
@@ -14,7 +15,7 @@ const schema = z.object({
   BETTER_AUTH_SECRET: z.string().min(32).optional(),
   /** Websites allowed to call the server, comma separated. The phone app is always allowed. */
   APP_ORIGINS: z.string().default("http://localhost:8081"),
-  APP_SCHEME: z.string().default("briv"),
+  APP_SCHEME: z.string().default(APP_SCHEME),
   /** Passkeys are tied to this domain. */
   PASSKEY_RP_ID: z.string().default("localhost"),
   GOOGLE_CLIENT_ID: z.string().optional(),
@@ -23,7 +24,7 @@ const schema = z.object({
   APPLE_CLIENT_SECRET: z.string().optional(),
   APPLE_APP_BUNDLE_IDENTIFIER: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
-  MAIL_FROM: z.string().default("Briv <codes@example.com>"),
+  MAIL_FROM: z.string().default(`${APP_NAME} <codes@example.com>`),
   /** 32 random bytes, base64. Seals statement text before it is stored. */
   SEAL_KEY: z.string().optional(),
 });

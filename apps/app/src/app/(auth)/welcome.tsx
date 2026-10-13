@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
+import { APP_NAME } from "@briv/core";
 import { authClient } from "@/lib/auth-client";
 import { SIGN_IN_PROVIDERS } from "@/lib/config";
 import { CheckIcon } from "@/ui/icons";
@@ -46,16 +47,16 @@ export default function Welcome() {
     >
       <View style={styles.brand}>
         <View style={styles.mark} accessibilityElementsHidden>
-          <T style={styles.markText}>b</T>
+          <T style={styles.markText}>{APP_NAME.charAt(0).toLowerCase()}</T>
         </View>
-        <T style={styles.brandText}>Briv</T>
+        <T style={styles.brandText}>{APP_NAME}</T>
       </View>
       <View style={{ gap: 10, marginTop: 24 }}>
         <T kind="title" accessibilityRole="header" style={{ fontSize: 34, lineHeight: 40 }}>
           See where your pay goes.
         </T>
         <T style={{ color: color.muted, fontSize: 16, lineHeight: 24 }}>
-          Briv tracks your spending with almost no typing, then finds real deals before your next spend.
+          {`${APP_NAME} tracks your spending with almost no typing, then finds real deals before your next spend.`}
         </T>
       </View>
       <View style={{ gap: 12, marginTop: 8 }}>

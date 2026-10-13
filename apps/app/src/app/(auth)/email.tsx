@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { useRef, useState } from "react";
 import { Platform, TextInput, View } from "react-native";
+import { APP_NAME } from "@briv/core";
 import { authClient } from "@/lib/auth-client";
 import { BackIcon } from "@/ui/icons";
 import { Button, Field, Problem, RoundButton, Screen, T } from "@/ui/kit";
@@ -73,7 +74,7 @@ export default function EmailSignIn() {
           {sentTo ? "Check your email" : "Your email"}
         </T>
         <T style={{ color: color.muted }}>
-          {sentTo ? `We sent a 6-number code to ${sentTo}. It works for 5 minutes.` : "Briv emails you a code. No password to remember."}
+          {sentTo ? `We sent a 6-number code to ${sentTo}. It works for 5 minutes.` : `${APP_NAME} emails you a code. No password to remember.`}
         </T>
       </View>
       {sentTo ? (

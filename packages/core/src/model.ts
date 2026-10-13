@@ -1,3 +1,5 @@
+import { APP_NAME } from "./brand.ts";
+
 /**
  * Every category a payment can be filed under. `spending: false` marks money that
  * moves but is not spent (savings, investments, transfers between your own accounts):
@@ -646,7 +648,7 @@ const CATEGORY_TIP: Record<CategoryId, string> = {
   fees:
     "These are avoidable. Look at what caused each one: a late payment, an overdraft, or a card used abroad.",
   cash:
-    "Cash is hard to track. Note what it was spent on, or pay by card so Briv can see it.",
+    `Cash is hard to track. Note what it was spent on, or pay by card so ${APP_NAME} can see it.`,
   other:
     "Give these a real category. Other is where forgotten memberships and card taps hide.",
   savings: "Money put aside. Not counted as spending.",
@@ -746,7 +748,7 @@ export function buildAdvice(input: {
       id: "empty",
       tone: "calm",
       title: "Log a few spends and the advice gets specific",
-      body: "Scan a receipt, or paste a Google Pay, Apple Pay, or Uber alert. Briv will sort it and tell you what to trim.",
+      body: `Scan a receipt, or paste a Google Pay, Apple Pay, or Uber alert. ${APP_NAME} will sort it and tell you what to trim.`,
     });
   }
 

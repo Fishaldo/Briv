@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { CATEGORIES, poundsToPence, todayISO, validDate, type CategoryId } from "@briv/core";
+import { APP_NAME, CATEGORIES, poundsToPence, todayISO, validDate, type CategoryId } from "@briv/core";
 import { pounds } from "@/features/money";
 import { api, ApiError, type Payment } from "@/lib/api";
 import { CloseIcon } from "@/ui/icons";
@@ -139,7 +139,7 @@ export default function Add() {
               Already saved?
             </T>
             <T style={{ color: color.amberInk }}>
-              {`${duplicate.shopName ?? "A payment"}, ${pounds(duplicate.amount)} on ${duplicate.spentOn.split("-").reverse().join("/")} is already in Briv.`}
+              {`${duplicate.shopName ?? "A payment"}, ${pounds(duplicate.amount)} on ${duplicate.spentOn.split("-").reverse().join("/")} is already in ${APP_NAME}.`}
             </T>
             <Button label="Keep the saved one" kind="secondary" disabled={busy} onPress={() => setDuplicate(null)} />
             <Button label="Replace it with this one" kind="secondary" busy={busy} onPress={() => save({ choice: "replace", savedId: duplicate.id })} />

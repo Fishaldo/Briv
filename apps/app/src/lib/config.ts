@@ -12,4 +12,4 @@ export const SIGN_IN_PROVIDERS = new Set(
     .filter(Boolean),
 );
 
-export const APP_SCHEME = "briv";
+export { APP_NAME, APP_SCHEME } from "@briv/core";

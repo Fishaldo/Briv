@@ -1,3 +1,4 @@
+import { APP_NAME } from "@briv/core";
 import type { Env } from "./env.ts";
 
 export type Mailer = (message: { to: string; subject: string; text: string }) => Promise<void>;
@@ -26,7 +27,7 @@ export function createMailer(env: Env): Mailer {
 
 export function signInCodeMessage(code: string) {
   return {
-    subject: `${code} is your Briv code`,
-    text: `Your Briv code is ${code}.\n\nIt works for 5 minutes. If you did not ask for it, you can ignore this email.`,
+    subject: `${code} is your ${APP_NAME} code`,
+    text: `Your ${APP_NAME} code is ${code}.\n\nIt works for 5 minutes. If you did not ask for it, you can ignore this email.`,
   };
 }

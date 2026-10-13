@@ -5,6 +5,7 @@ import { emailOTP } from "better-auth/plugins";
 import { expo } from "@better-auth/expo";
 import { passkey } from "@better-auth/passkey";
 import { eq } from "drizzle-orm";
+import { APP_NAME } from "@briv/core";
 import {
   authAccounts,
   authPasskeys,
@@ -43,7 +44,7 @@ export function createAuth(db: Database, env: Env, mail: Mailer) {
   if (env.APPLE_CLIENT_ID) trustedOrigins.push("https://appleid.apple.com");
 
   return betterAuth({
-    appName: "Briv",
+    appName: APP_NAME,
     baseURL: env.BETTER_AUTH_URL,
     secret: env.secret,
     trustedOrigins,
@@ -105,7 +106,7 @@ export function createAuth(db: Database, env: Env, mail: Mailer) {
       }),
       passkey({
         rpID: env.PASSKEY_RP_ID,
-        rpName: "Briv",
+        rpName: APP_NAME,
         origin: env.origins,
       }),
     ],

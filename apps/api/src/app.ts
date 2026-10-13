@@ -5,6 +5,7 @@ import { HTTPException } from "hono/http-exception";
 import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
+  APP_NAME,
   CATEGORIES,
   countsAsSpending,
   isCategory,
@@ -66,7 +67,7 @@ const newPayment = z
     amount: z.number().int().positive().max(100_000_000),
     spentOn: z.string().refine(validDate, "Use a real date, like 2026-10-13."),
     shopName: z.string().trim().max(80).nullable().optional(),
-    category: z.string().refine(isCategory, "Pick one of Briv's categories."),
+    category: z.string().refine(isCategory, `Pick one of ${APP_NAME}'s categories.`),
     kind: z.string().trim().max(40).optional(),
     note: z.string().trim().max(280).optional(),
     source: z.enum(["typed", "receipt", "statement", "message", "voice", "email", "bank"]).default("typed"),

@@ -1,5 +1,5 @@
 import { Platform } from "react-native";
-import type { CategoryId } from "@briv/core";
+import { APP_NAME, type CategoryId } from "@briv/core";
 import { authClient } from "./auth-client";
 import { API_URL } from "./config";
 
@@ -30,7 +30,7 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
       credentials: Platform.OS === "web" ? "include" : "omit",
     });
   } catch {
-    throw new ApiError(0, "Briv can't reach the internet right now. Check your connection and try again.", {});
+    throw new ApiError(0, `${APP_NAME} can't reach the internet right now. Check your connection and try again.`, {});
   }
   const text = await response.text();
   let body: Record<string, unknown> = {};

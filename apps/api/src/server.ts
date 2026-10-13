@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
+import { APP_NAME } from "@briv/core";
 import { createDb } from "@briv/db";
 import { createApp } from "./app.ts";
 import { createAuth } from "./auth.ts";
@@ -21,7 +22,7 @@ const auth = createAuth(handle.db, env, createMailer(env));
 const app = createApp({ db: handle.db, auth, env, resolveTown: postcodesTown });
 
 const server = serve({ fetch: app.fetch, port: env.PORT, hostname: "0.0.0.0" }, (info) => {
-  console.log(`Briv server on http://localhost:${info.port}`);
+  console.log(`${APP_NAME} server on http://localhost:${info.port}`);
 });
 
 const stop = async () => {

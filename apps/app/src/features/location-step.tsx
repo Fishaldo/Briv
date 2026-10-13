@@ -1,6 +1,7 @@
 import * as Location from "expo-location";
 import { useState } from "react";
 import { Platform, StyleSheet, View } from "react-native";
+import { APP_NAME } from "@briv/core";
 import { api, type Me } from "@/lib/api";
 import { CheckIcon, PinIcon } from "@/ui/icons";
 import { Button, Field, Problem, Screen, T } from "@/ui/kit";
@@ -41,7 +42,7 @@ export function LocationStep({
       if (permission.status !== "granted") {
         setAnswer({ allowed: false, precise: false });
         setMode("type");
-        setProblem("Location is off for Briv. Type your town instead.");
+        setProblem(`Location is off for ${APP_NAME}. Type your town instead.`);
         return;
       }
       const precise =
@@ -62,7 +63,7 @@ export function LocationStep({
       } else {
         setAnswer({ allowed: true, precise });
         setMode("type");
-        setProblem("Briv couldn't find your town. Type it instead.");
+        setProblem(`${APP_NAME} couldn't find your town. Type it instead.`);
       }
     } catch (error) {
       setMode("type");
@@ -138,7 +139,7 @@ export function LocationStep({
           Deals near you first
         </T>
         <T style={{ color: color.muted, fontSize: 16, lineHeight: 24 }}>
-          Briv uses your location to put nearby shops and deals at the top. Only your town is saved, never where you are.
+          {`${APP_NAME} uses your location to put nearby shops and deals at the top. Only your town is saved, never where you are.`}
         </T>
       </View>
       {mode === "ask" ? (

@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { StyleSheet, View } from "react-native";
-import { nextPayday } from "@briv/core";
+import { APP_NAME, nextPayday } from "@briv/core";
 import { longDate, pounds } from "@/features/money";
 import { PaymentRow } from "@/features/payment-row";
 import type { Payment, Summary } from "@/lib/api";
@@ -58,7 +58,7 @@ export default function Home() {
         ) : latest.data ? (
           <Card>
             <T kind="strong">No spends yet</T>
-            <T kind="small">Add your first one and Briv starts counting this pay.</T>
+            <T kind="small">{`Add your first one and ${APP_NAME} starts counting this pay.`}</T>
             <Button label="Add a spend" onPress={() => router.navigate("/add")} />
           </Card>
         ) : null}
@@ -72,7 +72,7 @@ function SpentCard({ summary: s, hasPayday }: { summary: Summary; hasPayday: boo
   const diff = s.spent - s.lastPaySameDay;
   const pace =
     s.lastPaySpent === 0
-      ? "Your first pay period with Briv"
+      ? `Your first pay period with ${APP_NAME}`
       : diff === 0
         ? "Same as this point last pay"
         : `${pounds(Math.abs(diff))} ${diff < 0 ? "less" : "more"} than this point last pay`;

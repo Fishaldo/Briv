@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
-import { formatGBP, poundsToPence } from "@briv/core";
+import { APP_NAME, formatGBP, poundsToPence } from "@briv/core";
 import { api, type Me } from "@/lib/api";
 import { useMe, useSession } from "@/lib/session";
 import { Button, Chip, Chips, Field, Problem, Screen, T } from "@/ui/kit";
@@ -60,7 +60,7 @@ export default function AboutYou() {
         <T kind="title" accessibilityRole="header">
           A little about you
         </T>
-        <T style={{ color: color.muted }}>So Briv can set your pay period. You can change this later.</T>
+        <T style={{ color: color.muted }}>{`So ${APP_NAME} can set your pay period. You can change this later.`}</T>
       </View>
       <Field
         label="First name"
@@ -78,7 +78,7 @@ export default function AboutYou() {
         keyboardType="decimal-pad"
         inputMode="decimal"
         placeholder="£2,400"
-        hint="After tax. Briv asks you to confirm it each payday."
+        hint={`After tax. ${APP_NAME} asks you to confirm it each payday.`}
         error={errors.pay}
       />
       <Field
@@ -89,7 +89,7 @@ export default function AboutYou() {
         inputMode="numeric"
         maxLength={2}
         placeholder="25"
-        hint="No fixed payday? Leave it empty and Briv uses calendar months."
+        hint={`No fixed payday? Leave it empty and ${APP_NAME} uses calendar months.`}
         error={errors.payday}
       />
       <View style={{ gap: 8 }}>

@@ -10,6 +10,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { View } from "react-native";
+import { APP_NAME } from "@briv/core";
 import { SessionProvider, useSession } from "@/lib/session";
 import { Button, Screen, T } from "@/ui/kit";
 import { color } from "@/ui/theme";
@@ -38,7 +39,7 @@ function Navigator() {
   if (stage === "problem") {
     return (
       <Screen>
-        <T kind="title">Briv can't connect</T>
+        <T kind="title">{`${APP_NAME} can't connect`}</T>
         <T style={{ color: color.muted }}>{problem}</T>
         <Button label="Try again" onPress={() => refresh()} />
       </Screen>

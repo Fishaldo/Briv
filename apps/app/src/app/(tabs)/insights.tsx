@@ -1,5 +1,5 @@
 import { StyleSheet, View } from "react-native";
-import { categoryLabel, type CategoryId } from "@briv/core";
+import { APP_NAME, categoryLabel, type CategoryId } from "@briv/core";
 import { pounds } from "@/features/money";
 import type { Summary } from "@/lib/api";
 import { useLoad } from "@/lib/use-load";
@@ -50,7 +50,7 @@ export default function Insights() {
       {s && rows.length === 0 ? (
         <Card>
           <T kind="strong">Nothing to compare yet</T>
-          <T kind="small">Add a few spends and Briv shows where the money went, by category.</T>
+          <T kind="small">{`Add a few spends and ${APP_NAME} shows where the money went, by category.`}</T>
         </Card>
       ) : null}
 

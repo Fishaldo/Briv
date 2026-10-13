@@ -2,6 +2,7 @@
  * Briv's pure logic: no network, no database, no screens.
  * Everything here runs the same on the phone, the website and the server.
  */
+export * from "./brand.ts";
 export * from "./model.ts";
 export * from "./duplicate.ts";
 export * from "./deals.ts";
