@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { APP_NAME } from "@briv/core";
 import { BudgetPanel } from "@/features/budget";
 import { Card, Chip, Screen, T } from "@/ui/kit";
-import { color } from "@/ui/theme";
+import { makeStyles, useColors } from "@/ui/theme";
 
 const SOON = [
   "Pick what you are planning, then up to 3 quick questions.",
@@ -14,6 +14,8 @@ const SOON = [
 
 /** Plan: a spend before you make it, or this pay's budget. Budget sits here so it is easy to find. */
 export default function Plan() {
+  const c = useColors();
+  const styles = useStyles();
   const { part } = useLocalSearchParams<{ part?: string }>();
   const onBudget = part === "budget";
   const show = (budget: boolean) => router.setParams({ part: budget ? "budget" : undefined });
@@ -31,11 +33,11 @@ export default function Plan() {
         <BudgetPanel />
       ) : (
         <>
-          <T style={{ color: color.muted }}>Before you buy: deals near you first, then across the UK.</T>
+          <T style={{ color: c.muted }}>Before you buy: deals near you first, then across the UK.</T>
           <Card>
             <T kind="strong">Coming next</T>
             {SOON.map((line) => (
-              <T key={line} kind="small" style={{ color: color.inkSoft }}>
+              <T key={line} kind="small" style={{ color: c.inkSoft }}>
                 {`• ${line}`}
               </T>
             ))}
@@ -46,6 +48,8 @@ export default function Plan() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(() =>
+  StyleSheet.create({
   switch: { flexDirection: "row", gap: 10 },
-});
+}),
+);

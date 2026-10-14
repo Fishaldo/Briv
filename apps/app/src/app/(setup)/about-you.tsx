@@ -5,9 +5,10 @@ import { APP_NAME, formatGBP, poundsToPence } from "@briv/core";
 import { api, type Me } from "@/lib/api";
 import { useMe, useSession } from "@/lib/session";
 import { Button, Chip, Chips, Field, Problem, Screen, T } from "@/ui/kit";
-import { color, font } from "@/ui/theme";
+import { font, useColors } from "@/ui/theme";
 
 export default function AboutYou() {
+  const c = useColors();
   const me = useMe();
   const { setMe, signOut } = useSession();
   const [name, setName] = useState(me.name);
@@ -53,14 +54,14 @@ export default function AboutYou() {
         </>
       }
     >
-      <T kind="small" style={{ fontFamily: font.bold, color: color.green }}>
+      <T kind="small" style={{ fontFamily: font.bold, color: c.accent }}>
         Step 1 of 2
       </T>
       <View style={{ gap: 6 }}>
         <T kind="title" accessibilityRole="header">
           A little about you
         </T>
-        <T style={{ color: color.muted }}>{`So ${APP_NAME} can set your pay period. You can change this later.`}</T>
+        <T style={{ color: c.muted }}>{`So ${APP_NAME} can set your pay period. You can change this later.`}</T>
       </View>
       <Field
         label="First name"

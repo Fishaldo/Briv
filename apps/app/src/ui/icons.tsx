@@ -1,15 +1,17 @@
 import Svg, { Circle, Path } from "react-native-svg";
+import { useColors } from "./theme";
 
 type IconProps = { size?: number; color?: string; strokeWidth?: number };
 
-function Icon({ size = 24, color = "#17211C", strokeWidth = 1.9, children }: IconProps & { children: React.ReactNode }) {
+function Icon({ size = 24, color, strokeWidth = 1.9, children }: IconProps & { children: React.ReactNode }) {
+  const c = useColors();
   return (
     <Svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      stroke={color}
+      stroke={color ?? c.ink}
       strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"

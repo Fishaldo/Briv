@@ -4,9 +4,11 @@ import { pounds } from "@/features/money";
 import type { Summary } from "@/lib/api";
 import { useLoad } from "@/lib/use-load";
 import { Card, List, Problem, Row, Screen, T } from "@/ui/kit";
-import { color, font } from "@/ui/theme";
+import { font, makeStyles, useColors } from "@/ui/theme";
 
 export default function Insights() {
+  const c = useColors();
+  const styles = useStyles();
   const { data: s, problem } = useLoad<Summary>("/me/summary");
 
   const rows = s ? categoryRows(s) : [];
@@ -18,7 +20,7 @@ export default function Insights() {
         <T kind="title" accessibilityRole="header">
           Insights
         </T>
-        {s ? <T style={{ color: color.muted }}>This pay: {s.period.label}</T> : null}
+        {s ? <T style={{ color: c.muted }}>This pay: {s.period.label}</T> : null}
       </View>
       <Problem>{problem}</Problem>
 
@@ -90,11 +92,11 @@ export default function Insights() {
       ) : null}
 
       {s && s.moved > 0 ? (
-        <Card tone="blue">
-          <T kind="strong" style={{ color: color.blue }}>
+        <Card tone="saved">
+          <T kind="strong" style={{ color: c.saved }}>
             {pounds(s.moved)} saved, invested or moved
           </T>
-          <T kind="small" style={{ color: color.blue }}>
+          <T kind="small" style={{ color: c.saved }}>
             Not counted as spending.
           </T>
         </Card>
@@ -114,9 +116,11 @@ function categoryRows(s: Summary) {
     .sort((a, b) => b.now - a.now || b.last - a.last);
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) =>
+  StyleSheet.create({
   compare: { flexDirection: "row", gap: 10 },
   rowTop: { flexDirection: "row", alignItems: "center", gap: 10 },
-  track: { height: 8, borderRadius: 4, backgroundColor: color.rule, overflow: "hidden" },
-  fill: { height: 8, borderRadius: 4, backgroundColor: color.green },
-});
+  track: { height: 8, borderRadius: 4, backgroundColor: c.rule, overflow: "hidden" },
+  fill: { height: 8, borderRadius: 4, backgroundColor: c.accent },
+}),
+);

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { CATEGORIES, categoryLabel, SEARCH_PERIODS, type CategoryId, type SearchPeriodId } from "@briv/core";
-import { color, font, radius, touch } from "@/ui/theme";
+import { font, makeStyles, radius, touch } from "@/ui/theme";
 import { Sheet, SheetOption } from "./sheet";
 
 /** One button that shows the choice, and opens the list of choices. */
 function PickerButton({ label, a11y, onPress }: { label: string; a11y: string; onPress: () => void }) {
+  const styles = useStyles();
   return (
     <Pressable
       onPress={onPress}
@@ -79,19 +80,21 @@ export function CategoryPicker({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) =>
+  StyleSheet.create({
   button: {
     minHeight: touch,
     paddingHorizontal: 14,
     borderRadius: radius.chip,
     borderWidth: 1,
-    borderColor: color.lineStrong,
-    backgroundColor: color.card,
+    borderColor: c.lineStrong,
+    backgroundColor: c.card,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     alignSelf: "flex-start",
   },
-  text: { fontFamily: font.bold, fontSize: 14, color: color.ink },
-  caret: { fontSize: 12, color: color.muted },
-});
+  text: { fontFamily: font.bold, fontSize: 14, color: c.ink },
+  caret: { fontSize: 12, color: c.muted },
+}),
+);

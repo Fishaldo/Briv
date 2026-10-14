@@ -7,7 +7,7 @@ import { PageHead } from "@/features/page-head";
 import { api, type RegularItem } from "@/lib/api";
 import { useLoad } from "@/lib/use-load";
 import { Button, Card, List, Problem, Row, Screen, T } from "@/ui/kit";
-import { color } from "@/ui/theme";
+import { useColors } from "@/ui/theme";
 
 function when(item: RegularItem): string {
   if (item.stopped) return "Stopped";
@@ -20,6 +20,7 @@ function when(item: RegularItem): string {
 
 /** What comes out regularly: bills, subscriptions and rent, found in the person's own payments. */
 export default function Regulars() {
+  const c = useColors();
   const list = useLoad<{ items: RegularItem[] }>("/me/regulars");
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -52,11 +53,11 @@ export default function Regulars() {
         </Card>
       ) : null}
       {live.length > 0 ? (
-        <Card tone="green">
-          <T kind="small" style={{ color: color.green }}>
+        <Card tone="brand">
+          <T kind="small" style={{ color: c.accent }}>
             About this much a month
           </T>
-          <T kind="money" style={{ fontSize: 26, color: color.green }}>
+          <T kind="money" style={{ fontSize: 26, color: c.accent }}>
             {pounds(monthly)}
           </T>
         </Card>
@@ -75,9 +76,9 @@ export default function Regulars() {
                 {[isFreq(item.freq) ? FREQ_LABEL[item.freq] : "", when(item)].filter(Boolean).join(" · ")}
               </T>
               {item.rise ? (
-                <T kind="small" style={{ color: color.amber }}>{`Went up from ${pounds(item.rise.from)} to ${pounds(item.rise.to)} on ${dayText(item.rise.on)}`}</T>
+                <T kind="small" style={{ color: c.warn }}>{`Went up from ${pounds(item.rise.from)} to ${pounds(item.rise.to)} on ${dayText(item.rise.on)}`}</T>
               ) : null}
-              {item.paidAfterStop ? <T kind="small" style={{ color: color.danger }}>Marked as stopped, but paid again since.</T> : null}
+              {item.paidAfterStop ? <T kind="small" style={{ color: c.bad }}>Marked as stopped, but paid again since.</T> : null}
               {open === item.key ? (
                 <View style={{ gap: 8, paddingTop: 6 }}>
                   <Button

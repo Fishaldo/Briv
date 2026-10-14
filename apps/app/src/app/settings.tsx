@@ -4,10 +4,11 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { formatGBP, poundsToPence } from "@briv/core";
 import type { PaydayRuleName } from "@briv/contract";
 import { api, type Me } from "@/lib/api";
+import { useAppearance, type AppearanceChoice } from "@/lib/appearance";
 import { useMe, useSession } from "@/lib/session";
 import { BackIcon, CloseIcon, PinIcon } from "@/ui/icons";
 import { Button, Card, Chip, Chips, Field, List, Problem, RoundButton, Row, Screen, T } from "@/ui/kit";
-import { color, font, touch } from "@/ui/theme";
+import { font, makeStyles, touch, useColors } from "@/ui/theme";
 
 const PAYDAY_CHOICES: { id: PaydayRuleName; label: string; line: string }[] = [
   { id: "day_of_month", label: "A day of the month", line: "Like the 25th. Each pay runs from payday to the day before the next." },
@@ -16,9 +17,18 @@ const PAYDAY_CHOICES: { id: PaydayRuleName; label: string; line: string }[] = [
   { id: "none", label: "Not monthly", line: "Pays are counted as calendar months." },
 ];
 
+const APPEARANCE: { id: AppearanceChoice; label: string }[] = [
+  { id: "system", label: "Match phone" },
+  { id: "light", label: "Light" },
+  { id: "dark", label: "Dark" },
+];
+
 export default function Settings() {
+  const c = useColors();
+  const styles = useStyles();
   const me = useMe();
   const { setMe, signOut } = useSession();
+  const appearance = useAppearance();
   const [name, setName] = useState(me.name);
   const [pay, setPay] = useState(me.profile.usualTakeHome ? formatGBP(me.profile.usualTakeHome).replace(/\.00$/, "") : "");
   const [payday, setPayday] = useState(me.profile.paydayDay ? String(me.profile.paydayDay) : "");
@@ -121,15 +131,25 @@ export default function Settings() {
       </List>
 
       <View style={{ gap: 10 }}>
+        <T kind="heading">Look</T>
+        <Chips>
+          {APPEARANCE.map((choice) => (
+            <Chip key={choice.id} label={choice.label} wide on={appearance.choice === choice.id} onPress={() => appearance.setChoice(choice.id)} />
+          ))}
+        </Chips>
+        <T kind="small">Kept on this phone only.</T>
+      </View>
+
+      <View style={{ gap: 10 }}>
         <T kind="heading">Places</T>
         <List>
           <Row onPress={() => router.push("/change-location")}>
-            <PinIcon size={22} color={color.green} />
+            <PinIcon size={22} color={c.accent} />
             <View style={{ flex: 1, gap: 2 }}>
               <T kind="strong">{me.profile.homeTown ?? "No town yet"}</T>
               <T kind="small">{me.profile.preciseLocation ? "This phone's location · precise" : "Your town"}</T>
             </View>
-            <T kind="label" style={{ color: color.green }}>
+            <T kind="label" style={{ color: c.accent }}>
               Change
             </T>
           </Row>
@@ -145,7 +165,7 @@ export default function Settings() {
                 onPress={() => run(`remove-${p.id}`, () => api<Me>(`/me/places/${p.id}`, { method: "DELETE" }))}
                 style={styles.remove}
               >
-                <CloseIcon size={20} color={color.muted} />
+                <CloseIcon size={20} color={c.muted} />
               </Pressable>
             </Row>
           ))}
@@ -159,10 +179,10 @@ export default function Settings() {
         <T kind="small">{`Signed in as ${me.email}`}</T>
         <Button label="Sign out" kind="secondary" onPress={signOut} />
         {deleting === "confirm" ? (
-          <Card tone="amber">
+          <Card tone="warn">
             <T kind="strong">Delete your account?</T>
-            <T style={{ color: color.amberInk }}>Every spend, place and setting is removed. This can't be undone.</T>
-            <T style={{ color: color.amberInk }}>{`We'll email a code to ${me.email} to check it's you.`}</T>
+            <T style={{ color: c.warnInk }}>Every spend, place and setting is removed. This can't be undone.</T>
+            <T style={{ color: c.warnInk }}>{`We'll email a code to ${me.email} to check it's you.`}</T>
             <Button
               label="Email me the code"
               kind="danger"
@@ -177,7 +197,7 @@ export default function Settings() {
             <Button label="Keep my account" kind="quiet" onPress={() => setDeleting("closed")} />
           </Card>
         ) : deleting === "code" ? (
-          <Card tone="amber">
+          <Card tone="warn">
             <T kind="strong">Enter the code from the email</T>
             <Field
               label="6-digit code"
@@ -219,7 +239,9 @@ export default function Settings() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(() =>
+  StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 12 },
   remove: { width: touch, height: touch, alignItems: "center", justifyContent: "center" },
-});
+}),
+);

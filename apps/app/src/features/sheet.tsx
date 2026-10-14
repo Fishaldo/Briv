@@ -3,13 +3,14 @@ import { Modal, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CheckIcon } from "@/ui/icons";
 import { T } from "@/ui/kit";
-import { color, font, maxWidth, radius, touch } from "@/ui/theme";
+import { font, makeStyles, maxWidth, radius, touch, useColors } from "@/ui/theme";
 
 /**
  * A list of choices that slides up from the bottom. Tapping outside it, or the
  * phone's Back button, closes it without choosing.
  */
 export function Sheet({ open, title, onClose, children }: { open: boolean; title: string; onClose: () => void; children: ReactNode }) {
+  const styles = useStyles();
   const insets = useSafeAreaInsets();
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
@@ -25,26 +26,29 @@ export function Sheet({ open, title, onClose, children }: { open: boolean; title
 }
 
 export function SheetOption({ label, line, on, onPress }: { label: string; line?: string; on?: boolean; onPress: () => void }) {
+  const c = useColors();
+  const styles = useStyles();
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: !!on }}
-      style={({ pressed }) => [styles.option, pressed && { backgroundColor: color.rule }]}
+      style={({ pressed }) => [styles.option, pressed && { backgroundColor: c.rule }]}
     >
       <View style={{ flex: 1, gap: 2 }}>
         <T style={{ fontFamily: on ? font.heavy : font.semibold, fontSize: 16 }}>{label}</T>
         {line ? <T kind="small">{line}</T> : null}
       </View>
-      {on ? <CheckIcon size={20} color={color.green} /> : null}
+      {on ? <CheckIcon size={20} color={c.accent} /> : null}
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: "rgba(23,33,28,0.4)" },
+const useStyles = makeStyles((c) =>
+  StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: c.scheme === "dark" ? "rgba(0,0,0,0.6)" : "rgba(23,33,28,0.4)" },
   sheet: {
-    backgroundColor: color.card,
+    backgroundColor: c.card,
     borderTopLeftRadius: radius.hero,
     borderTopRightRadius: radius.hero,
     width: "100%",
@@ -52,4 +56,5 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   option: { minHeight: touch + 8, paddingHorizontal: 20, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 12 },
-});
+}),
+);

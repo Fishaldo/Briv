@@ -5,7 +5,7 @@ import { MAX_BUDGET_LINES } from "@briv/contract";
 import { api, type BudgetAnswer, type BudgetDraft } from "@/lib/api";
 import { useLoad } from "@/lib/use-load";
 import { Button, Card, Field, List, Problem, Row, T } from "@/ui/kit";
-import { color, font } from "@/ui/theme";
+import { font, makeStyles, useColors } from "@/ui/theme";
 import { pounds } from "./money";
 import { CategoryPicker } from "./pickers";
 
@@ -29,6 +29,8 @@ function lineName(line: { name: string; category: CategoryId | null }): string {
  * last pays, never more than the take-home, savings first. They change any line.
  */
 export function BudgetPanel() {
+  const c = useColors();
+  const styles = useStyles();
   const budget = useLoad<BudgetAnswer>("/me/budget");
   const [draft, setDraft] = useState<DraftLine[] | null>(null);
   const [plan, setPlan] = useState<BudgetDraft | null>(null);
@@ -118,7 +120,7 @@ export function BudgetPanel() {
                 <Field label="Name" value={line.name} onChangeText={(name) => update(line.key, { name })} placeholder="Perfume, driving lessons" maxLength={40} />
               ) : null}
               {saving ? (
-                <T kind="small" style={{ color: color.blue }}>
+                <T kind="small" style={{ color: c.saved }}>
                   {line.usual >= 100 ? `Put away first, on payday. You usually put away ${pounds(Math.round(line.usual / 100) * 100)}.` : "Put away first, on payday."}
                 </T>
               ) : line.usual >= 500 && Math.abs(line.usual - typed) >= 500 ? (
@@ -133,7 +135,7 @@ export function BudgetPanel() {
                       value={line.neverCut}
                       onValueChange={(neverCut) => update(line.key, { neverCut })}
                       accessibilityLabel={`Never cut ${lineName(line)}`}
-                      trackColor={{ true: color.green, false: color.lineStrong }}
+                      trackColor={{ true: c.action, false: c.lineStrong }}
                     />
                     <T>Never cut</T>
                   </View>
@@ -144,7 +146,7 @@ export function BudgetPanel() {
                   accessibilityLabel={`Remove ${lineName(line)}`}
                   hitSlop={10}
                 >
-                  <T kind="label" style={{ color: color.muted }}>
+                  <T kind="label" style={{ color: c.muted }}>
                     Remove
                   </T>
                 </Pressable>
@@ -161,8 +163,8 @@ export function BudgetPanel() {
         ) : null}
         <T accessibilityLiveRegion="polite">
           {`${pounds(total)} planned${takeHome ? ` of ${pounds(takeHome)} take-home` : ""}.`}
-          {takeHome && total > takeHome ? <T style={{ color: color.amber }}> That is more than you take home.</T> : null}
-          {takeHome && total < takeHome ? <T style={{ color: color.muted }}>{` ${pounds(takeHome - total)} spare.`}</T> : null}
+          {takeHome && total > takeHome ? <T style={{ color: c.warn }}> That is more than you take home.</T> : null}
+          {takeHome && total < takeHome ? <T style={{ color: c.muted }}>{` ${pounds(takeHome - total)} spare.`}</T> : null}
         </T>
         <Problem>{problem}</Problem>
         <Button label="Save budget" busy={busy === "save"} onPress={save} />
@@ -196,9 +198,9 @@ export function BudgetPanel() {
     <View style={{ gap: 16 }}>
       <T kind="small">This pay's plan for your take-home, with savings first. Change any line.</T>
       {over && b.takeHome ? (
-        <Card tone="amber">
-          <T kind="strong" style={{ color: color.amberInk }}>{`This budget is ${pounds(b.planned - b.takeHome)} more than your ${pounds(b.takeHome)} take-home.`}</T>
-          <T kind="small" style={{ color: color.amberInk }}>
+        <Card tone="warn">
+          <T kind="strong" style={{ color: c.warnInk }}>{`This budget is ${pounds(b.planned - b.takeHome)} more than your ${pounds(b.takeHome)} take-home.`}</T>
+          <T kind="small" style={{ color: c.warnInk }}>
             {`${APP_NAME} can fit it: savings first, rent and bills kept, the lines that bend most trimmed most.`}
           </T>
           <Button label="Fit it to my take-home" busy={busy === "fit"} onPress={() => make(true)} />
@@ -229,11 +231,11 @@ export function BudgetPanel() {
                       style={[
                         styles.fill,
                         { width: `${Math.max(Math.round(share * 100), 2)}%` },
-                        saving ? { backgroundColor: color.blue } : lineOver ? { backgroundColor: color.amber } : null,
+                        saving ? { backgroundColor: c.saved } : lineOver ? { backgroundColor: c.warn } : null,
                       ]}
                     />
                   </View>
-                  <T kind="small" style={lineOver ? { color: color.amber } : undefined}>
+                  <T kind="small" style={lineOver ? { color: c.warn } : undefined}>
                     {saving
                       ? line.spent >= line.amount
                         ? `Done: ${pounds(line.spent)} put away this pay`
@@ -258,7 +260,7 @@ export function BudgetPanel() {
           <T kind="money">{`${pounds(b.planned)}${b.takeHome ? ` of ${pounds(b.takeHome)}` : ""}`}</T>
         </View>
         {b.takeHome ? (
-          <T kind="small" style={over ? { color: color.amber } : undefined}>
+          <T kind="small" style={over ? { color: c.warn } : undefined}>
             {over ? `${pounds(b.planned - b.takeHome)} more than your take-home.` : `${pounds(b.takeHome - b.planned)} spare for the unexpected.`}
           </T>
         ) : null}
@@ -272,6 +274,7 @@ export function BudgetPanel() {
 
 /** What the budget maker did, in plain words. */
 function PlanSummary({ plan }: { plan: BudgetDraft }) {
+  const c = useColors();
   if (!plan.takeHome) {
     return (
       <Card>
@@ -293,13 +296,13 @@ function PlanSummary({ plan }: { plan: BudgetDraft }) {
       <T kind="strong">{`${pounds(plan.planned)} planned of your ${pounds(plan.takeHome)} take-home`}</T>
       {rows.map(([label, pence]) => (
         <View key={label} style={{ flexDirection: "row", gap: 10 }}>
-          <T style={{ flex: 1, color: label === "Savings" ? color.blue : color.inkSoft, fontFamily: label === "Savings" ? font.bold : font.regular }}>{label}</T>
-          <T kind="money" style={label === "Savings" ? { color: color.blue } : undefined}>
+          <T style={{ flex: 1, color: label === "Savings" ? c.saved : c.inkSoft, fontFamily: label === "Savings" ? font.bold : font.regular }}>{label}</T>
+          <T kind="money" style={label === "Savings" ? { color: c.saved } : undefined}>
             {pounds(pence)}
           </T>
         </View>
       ))}
-      <T kind="small" style={{ color: color.inkSoft }}>
+      <T kind="small" style={{ color: c.inkSoft }}>
         {saved > 0
           ? plan.savings > saved
             ? `You usually put away ${pounds(saved)} a pay. This plan puts away ${pounds(plan.savings)}.`
@@ -313,7 +316,7 @@ function PlanSummary({ plan }: { plan: BudgetDraft }) {
           <T kind="label">{`To fit, ${APP_NAME} trimmed`}</T>
           {plan.trimmed.slice(0, 6).map((row) => (
             <View key={row.name} style={{ flexDirection: "row", gap: 10 }}>
-              <T style={{ flex: 1, color: color.inkSoft }} numberOfLines={1}>
+              <T style={{ flex: 1, color: c.inkSoft }} numberOfLines={1}>
                 {row.name}
               </T>
               <T kind="small" style={{ textDecorationLine: "line-through" }}>
@@ -325,12 +328,12 @@ function PlanSummary({ plan }: { plan: BudgetDraft }) {
         </View>
       ) : null}
       {plan.fixedOver ? (
-        <T kind="small" style={{ color: color.amber }}>
+        <T kind="small" style={{ color: c.warn }}>
           Rent, bills and your other never-cut lines are more than your take-home on their own. Check your take-home in Settings, or turn off Never cut on
           anything that can change.
         </T>
       ) : plan.tight ? (
-        <T kind="small" style={{ color: color.amber }}>
+        <T kind="small" style={{ color: c.warn }}>
           {`You usually spend ${pounds(Math.round(usualSpend / 100) * 100)} a pay, more than your take-home. To fit, the lines that can bend go well below usual.`}
         </T>
       ) : null}
@@ -338,10 +341,12 @@ function PlanSummary({ plan }: { plan: BudgetDraft }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) =>
+  StyleSheet.create({
   lineFoot: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  track: { height: 8, borderRadius: 4, backgroundColor: color.rule, overflow: "hidden" },
-  fill: { height: 8, borderRadius: 4, backgroundColor: color.green },
-  badge: { backgroundColor: color.greenTint, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
-  badgeText: { fontFamily: font.bold, fontSize: 12, color: color.green },
-});
+  track: { height: 8, borderRadius: 4, backgroundColor: c.rule, overflow: "hidden" },
+  fill: { height: 8, borderRadius: 4, backgroundColor: c.accent },
+  badge: { backgroundColor: c.accentTint, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
+  badgeText: { fontFamily: font.bold, fontSize: 12, color: c.accent },
+}),
+);

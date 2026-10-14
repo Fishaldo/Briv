@@ -5,7 +5,7 @@ import { APP_NAME } from "@briv/core";
 import { api, type Me } from "@/lib/api";
 import { CheckIcon, PinIcon } from "@/ui/icons";
 import { Button, Field, Problem, Screen, T } from "@/ui/kit";
-import { color } from "@/ui/theme";
+import { makeStyles, useColors } from "@/ui/theme";
 
 type Answer = { allowed: boolean; precise: boolean };
 
@@ -23,6 +23,8 @@ export function LocationStep({
   header?: React.ReactNode;
   onDone: (me: Me) => void | Promise<void>;
 }) {
+  const c = useColors();
+  const styles = useStyles();
   const [mode, setMode] = useState<"ask" | "type">("ask");
   const [answer, setAnswer] = useState<Answer>({ allowed: false, precise: false });
   const [town, setTown] = useState("");
@@ -128,18 +130,18 @@ export function LocationStep({
     >
       {header}
       {stepLabel ? (
-        <T kind="small" style={{ fontFamily: "Manrope_700Bold", color: color.green }}>
+        <T kind="small" style={{ fontFamily: "Manrope_700Bold", color: c.accent }}>
           {stepLabel}
         </T>
       ) : null}
       <View style={styles.badge} accessibilityElementsHidden>
-        <PinIcon size={34} color={color.green} />
+        <PinIcon size={34} color={c.accent} />
       </View>
       <View style={{ gap: 8 }}>
         <T kind="title" accessibilityRole="header">
           Deals near you first
         </T>
-        <T style={{ color: color.muted, fontSize: 16, lineHeight: 24 }}>
+        <T style={{ color: c.muted, fontSize: 16, lineHeight: 24 }}>
           {`${APP_NAME} uses your location to put nearby shops and deals at the top. Only your town is saved, never where you are.`}
         </T>
       </View>
@@ -147,7 +149,7 @@ export function LocationStep({
         <View style={{ gap: 10 }}>
           {["Precise location finds shops on your street.", "Change it any time in Settings."].map((line) => (
             <View key={line} style={styles.point}>
-              <CheckIcon size={18} color={color.green} />
+              <CheckIcon size={18} color={c.accent} />
               <T kind="strong" style={{ flex: 1 }}>
                 {line}
               </T>
@@ -172,7 +174,9 @@ export function LocationStep({
   );
 }
 
-const styles = StyleSheet.create({
-  badge: { width: 84, height: 84, borderRadius: 42, backgroundColor: color.greenTint, alignItems: "center", justifyContent: "center", marginVertical: 8 },
+const useStyles = makeStyles((c) =>
+  StyleSheet.create({
+  badge: { width: 84, height: 84, borderRadius: 42, backgroundColor: c.accentTint, alignItems: "center", justifyContent: "center", marginVertical: 8 },
   point: { flexDirection: "row", alignItems: "center", gap: 10 },
-});
+}),
+);

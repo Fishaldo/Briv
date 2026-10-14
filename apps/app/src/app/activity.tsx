@@ -10,10 +10,12 @@ import { Sheet, SheetOption } from "@/features/sheet";
 import type { Payment, PaymentList } from "@/lib/api";
 import { useLoad } from "@/lib/use-load";
 import { Card, Chip, Field, List, Problem, Screen, T } from "@/ui/kit";
-import { color, font } from "@/ui/theme";
+import { font, makeStyles, useColors } from "@/ui/theme";
 
 /** Every spend, searchable, with totals for what is shown. Tap one to change it. */
 export default function Activity() {
+  const c = useColors();
+  const styles = useStyles();
   const [typed, setTyped] = useState("");
   const [query, setQuery] = useState("");
   const [period, setPeriod] = useState<SearchPeriodId>("all");
@@ -106,7 +108,7 @@ export default function Activity() {
       ))}
       {data?.more ? <T kind="small">{`Showing the newest ${data.payments.length}. Search or pick a shorter time to see others.`}</T> : null}
       {data && data.payments.length > 0 ? (
-        <T kind="small" style={{ color: color.muted }}>{`Tap a spend to change it. ${APP_NAME} remembers the change for payments like it.`}</T>
+        <T kind="small" style={{ color: c.muted }}>{`Tap a spend to change it. ${APP_NAME} remembers the change for payments like it.`}</T>
       ) : null}
     </Screen>
   );
@@ -126,6 +128,8 @@ function groupByDay(payments: Payment[]) {
   return groups;
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(() =>
+  StyleSheet.create({
   filters: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-});
+}),
+);

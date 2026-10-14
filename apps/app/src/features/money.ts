@@ -1,5 +1,5 @@
 import { categoryLabel, countsAsSpending, dayLabel, formatGBP, type CategoryId } from "@briv/core";
-import { color } from "@/ui/theme";
+import type { Palette } from "@/ui/theme";
 
 /** £1,234 when there are no pence, £1,234.56 when there are: never rounded. */
 export function pounds(pence: number): string {
@@ -7,11 +7,9 @@ export function pounds(pence: number): string {
   return pence % 100 === 0 ? text.replace(/\.00$/, "") : text;
 }
 
-/** Spending is green; savings, investments and transfers are blue. */
-export function categoryColours(id: CategoryId) {
-  return countsAsSpending(id)
-    ? { tint: color.greenTint, ink: color.green }
-    : { tint: color.blueTint, ink: color.blue };
+/** Spending wears the brand; savings, investments and transfers are the "saved" blue. */
+export function categoryColours(id: CategoryId, c: Palette) {
+  return countsAsSpending(id) ? { tint: c.accentTint, ink: c.accent } : { tint: c.savedTint, ink: c.saved };
 }
 
 export function paymentLine(p: { category: CategoryId; spentOn: string }): string {

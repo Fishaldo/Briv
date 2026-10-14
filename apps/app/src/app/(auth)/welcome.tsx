@@ -6,7 +6,7 @@ import { authClient } from "@/lib/auth-client";
 import { SIGN_IN_PROVIDERS } from "@/lib/config";
 import { CheckIcon } from "@/ui/icons";
 import { Button, Problem, Screen, T } from "@/ui/kit";
-import { color, font } from "@/ui/theme";
+import { font, makeStyles, useColors } from "@/ui/theme";
 
 const POINTS = [
   "Bank, receipts, alerts or your voice",
@@ -15,6 +15,8 @@ const POINTS = [
 ];
 
 export default function Welcome() {
+  const c = useColors();
+  const styles = useStyles();
   const [busy, setBusy] = useState<"apple" | "google" | "passkey" | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -32,7 +34,7 @@ export default function Welcome() {
         <>
           <Problem>{problem}</Problem>
           {SIGN_IN_PROVIDERS.has("apple") && Platform.OS !== "android" ? (
-            <Button label="Continue with Apple" busy={busy === "apple"} onPress={() => social("apple")} style={styles.dark} />
+            <Button label="Continue with Apple" busy={busy === "apple"} onPress={() => social("apple")} kind="contrast" />
           ) : null}
           {SIGN_IN_PROVIDERS.has("google") ? (
             <Button label="Continue with Google" kind="secondary" busy={busy === "google"} onPress={() => social("google")} />
@@ -55,7 +57,7 @@ export default function Welcome() {
         <T kind="title" accessibilityRole="header" style={{ fontSize: 34, lineHeight: 40 }}>
           See where your pay goes.
         </T>
-        <T style={{ color: color.muted, fontSize: 16, lineHeight: 24 }}>
+        <T style={{ color: c.muted, fontSize: 16, lineHeight: 24 }}>
           {`${APP_NAME} tracks your spending with almost no typing, then finds real deals before your next spend.`}
         </T>
       </View>
@@ -63,7 +65,7 @@ export default function Welcome() {
         {POINTS.map((point) => (
           <View key={point} style={styles.point}>
             <View style={styles.tick}>
-              <CheckIcon size={16} color={color.green} />
+              <CheckIcon size={16} color={c.accent} />
             </View>
             <T kind="strong" style={{ flex: 1 }}>
               {point}
@@ -75,12 +77,13 @@ export default function Welcome() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) =>
+  StyleSheet.create({
   brand: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 12 },
-  mark: { width: 40, height: 40, borderRadius: 12, backgroundColor: color.green, alignItems: "center", justifyContent: "center" },
-  markText: { color: color.white, fontFamily: font.heavy, fontSize: 22, lineHeight: 26 },
+  mark: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.hero, alignItems: "center", justifyContent: "center" },
+  markText: { color: c.onHero, fontFamily: font.heavy, fontSize: 22, lineHeight: 26 },
   brandText: { fontFamily: font.heavy, fontSize: 20 },
   point: { flexDirection: "row", alignItems: "center", gap: 12 },
-  tick: { width: 28, height: 28, borderRadius: 14, backgroundColor: color.greenTint, alignItems: "center", justifyContent: "center" },
-  dark: { backgroundColor: color.ink },
-});
+  tick: { width: 28, height: 28, borderRadius: 14, backgroundColor: c.accentTint, alignItems: "center", justifyContent: "center" },
+}),
+);
