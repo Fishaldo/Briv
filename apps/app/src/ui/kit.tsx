@@ -15,25 +15,28 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { color, font, maxWidth, radius, space, touch } from "./theme";
+import { font, makeStyles, maxWidth, radius, space, touch, useColors } from "./theme";
 
 /* ------------------------------------------------------------------ */
 /* Text                                                                */
 /* ------------------------------------------------------------------ */
 
-const textStyles = StyleSheet.create({
-  title: { fontFamily: font.heavy, fontSize: 28, lineHeight: 34, letterSpacing: -0.5, color: color.ink },
-  heading: { fontFamily: font.heavy, fontSize: 17, lineHeight: 22, color: color.ink },
-  body: { fontFamily: font.regular, fontSize: 15, lineHeight: 22, color: color.ink },
-  strong: { fontFamily: font.bold, fontSize: 15, lineHeight: 21, color: color.ink },
-  small: { fontFamily: font.regular, fontSize: 13, lineHeight: 19, color: color.muted },
-  label: { fontFamily: font.bold, fontSize: 14, lineHeight: 19, color: color.ink },
-  money: { fontFamily: font.heavy, fontSize: 15, color: color.ink, fontVariant: ["tabular-nums"] },
-});
+const useTextStyles = makeStyles((c) =>
+  StyleSheet.create({
+    title: { fontFamily: font.heavy, fontSize: 28, lineHeight: 34, letterSpacing: -0.5, color: c.ink },
+    heading: { fontFamily: font.heavy, fontSize: 17, lineHeight: 22, color: c.ink },
+    body: { fontFamily: font.regular, fontSize: 15, lineHeight: 22, color: c.ink },
+    strong: { fontFamily: font.bold, fontSize: 15, lineHeight: 21, color: c.ink },
+    small: { fontFamily: font.regular, fontSize: 13, lineHeight: 19, color: c.muted },
+    label: { fontFamily: font.bold, fontSize: 14, lineHeight: 19, color: c.ink },
+    money: { fontFamily: font.heavy, fontSize: 15, color: c.ink, fontVariant: ["tabular-nums"] },
+  }),
+);
 
-export type TextKind = keyof typeof textStyles;
+export type TextKind = "title" | "heading" | "body" | "strong" | "small" | "label" | "money";
 
 export function T({ kind = "body", style, ...rest }: TextProps & { kind?: TextKind }) {
+  const textStyles = useTextStyles();
   return <Text {...rest} style={[textStyles[kind], style]} maxFontSizeMultiplier={1.6} />;
 }
 
@@ -54,6 +57,7 @@ export function Screen({
   style?: StyleProp<ViewStyle>;
 }) {
   const insets = useSafeAreaInsets();
+  const styles = useStyles();
   const inner = (
     <View style={[styles.column, { paddingTop: insets.top + 16 }, style]}>{children}</View>
   );
@@ -86,10 +90,13 @@ export function Card({
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
-  tone?: "plain" | "green" | "amber" | "blue";
+  /** brand: the person's own money; warn: check this; saved: put away; offer: a deal. */
+  tone?: "plain" | "brand" | "warn" | "saved" | "offer";
   /** Read out changes, for a total that updates as the person searches. */
   accessibilityLiveRegion?: "polite" | "assertive";
 }) {
+  const styles = useStyles();
+  const toneStyle = useToneStyles();
   return (
     <View style={[styles.card, toneStyle[tone], style]} accessibilityLiveRegion={accessibilityLiveRegion}>
       {children}
@@ -97,19 +104,24 @@ export function Card({
   );
 }
 
-const toneStyle = StyleSheet.create({
-  plain: {},
-  green: { backgroundColor: color.greenTint, borderColor: color.greenTint },
-  amber: { backgroundColor: color.amberTint, borderColor: color.amberTint },
-  blue: { backgroundColor: color.blueTint, borderColor: color.blueTint },
-});
+const useToneStyles = makeStyles((c) =>
+  StyleSheet.create({
+    plain: {},
+    brand: { backgroundColor: c.accentTint, borderColor: c.accentTint },
+    warn: { backgroundColor: c.warnTint, borderColor: c.warnTint },
+    saved: { backgroundColor: c.savedTint, borderColor: c.savedTint },
+    offer: { backgroundColor: c.offerTint, borderColor: c.offerTint },
+  }),
+);
 
 /** Rows in one card, with hairlines between them. */
 export function List({ children }: { children: ReactNode }) {
+  const styles = useStyles();
   return <View style={styles.list}>{children}</View>;
 }
 
 export function Row({ children, onPress, style, label }: { children: ReactNode; onPress?: () => void; style?: StyleProp<ViewStyle>; label?: string }) {
+  const styles = useStyles();
   if (!onPress) return <View style={[styles.row, style]}>{children}</View>;
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed, style]} accessibilityRole="button" accessibilityLabel={label}>
@@ -128,7 +140,7 @@ export function Gap({ size = space.gap }: { size?: number }) {
 
 type ButtonProps = Omit<PressableProps, "style" | "children"> & {
   label: string;
-  kind?: "primary" | "secondary" | "quiet" | "danger";
+  kind?: "primary" | "secondary" | "quiet" | "danger" | "contrast";
   busy?: boolean;
   icon?: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -136,6 +148,9 @@ type ButtonProps = Omit<PressableProps, "style" | "children"> & {
 
 export function Button({ label, kind = "primary", busy, icon, disabled, style, ...rest }: ButtonProps) {
   const off = disabled || busy;
+  const c = useColors();
+  const styles = useStyles();
+  const { buttonKind, buttonText } = useButtonStyles();
   return (
     <Pressable
       {...rest}
@@ -145,7 +160,7 @@ export function Button({ label, kind = "primary", busy, icon, disabled, style, .
       style={({ pressed }) => [styles.button, buttonKind[kind], pressed && styles.pressed, off && styles.off, style]}
     >
       {busy ? (
-        <ActivityIndicator color={kind === "primary" ? color.white : color.green} />
+        <ActivityIndicator color={kind === "primary" ? c.onAction : kind === "contrast" ? c.onChosen : c.accent} />
       ) : (
         <View style={styles.buttonInner}>
           {icon}
@@ -158,22 +173,26 @@ export function Button({ label, kind = "primary", busy, icon, disabled, style, .
   );
 }
 
-const buttonKind = StyleSheet.create({
-  primary: { backgroundColor: color.green },
-  secondary: { backgroundColor: color.card, borderWidth: 1, borderColor: color.lineStrong },
-  quiet: { backgroundColor: "transparent", minHeight: touch },
-  danger: { backgroundColor: color.card, borderWidth: 1, borderColor: color.danger },
-});
-
-const buttonText = StyleSheet.create({
-  primary: { color: color.white },
-  secondary: { color: color.ink },
-  quiet: { color: color.green },
-  danger: { color: color.danger },
-});
+const useButtonStyles = makeStyles((c) => ({
+  buttonKind: StyleSheet.create({
+    primary: { backgroundColor: c.action },
+    secondary: { backgroundColor: c.card, borderWidth: 1, borderColor: c.lineStrong },
+    quiet: { backgroundColor: "transparent", minHeight: touch },
+    danger: { backgroundColor: c.card, borderWidth: 1, borderColor: c.bad },
+    contrast: { backgroundColor: c.chosen },
+  }),
+  buttonText: StyleSheet.create({
+    primary: { color: c.onAction },
+    secondary: { color: c.ink },
+    quiet: { color: c.accent },
+    danger: { color: c.bad },
+    contrast: { color: c.onChosen },
+  }),
+}));
 
 /** A round icon button, such as Back or Settings. */
 export function RoundButton({ label, onPress, children }: { label: string; onPress: () => void; children: ReactNode }) {
+  const styles = useStyles();
   return (
     <Pressable
       onPress={onPress}
@@ -188,6 +207,7 @@ export function RoundButton({ label, onPress, children }: { label: string; onPre
 }
 
 export function Chip({ label, on, onPress, wide }: { label: string; on?: boolean; onPress: () => void; wide?: boolean }) {
+  const styles = useStyles();
   return (
     <Pressable
       onPress={onPress}
@@ -203,18 +223,22 @@ export function Chip({ label, on, onPress, wide }: { label: string; on?: boolean
 }
 
 export function Chips({ children }: { children: ReactNode }) {
+  const styles = useStyles();
   return <View style={styles.chips}>{children}</View>;
 }
 
 type FieldProps = TextInputProps & { label: string; hint?: string; error?: string | null };
 
 export const Field = forwardRef<TextInput, FieldProps>(function Field({ label, hint, error, style, ...rest }, ref) {
+  const c = useColors();
+  const styles = useStyles();
   return (
     <View style={styles.field}>
       <T kind="label">{label}</T>
       <TextInput
         ref={ref}
-        placeholderTextColor={color.placeholder}
+        placeholderTextColor={c.placeholder}
+        keyboardAppearance={c.scheme}
         accessibilityLabel={label}
         accessibilityHint={hint}
         maxFontSizeMultiplier={1.4}
@@ -222,7 +246,7 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field({ label, h
         style={[styles.input, error ? styles.inputError : null, style as StyleProp<TextStyle>]}
       />
       {error ? (
-        <T kind="small" style={{ color: color.danger }} accessibilityLiveRegion="polite">
+        <T kind="small" style={{ color: c.bad }} accessibilityLiveRegion="polite">
           {error}
         </T>
       ) : hint ? (
@@ -233,55 +257,61 @@ export const Field = forwardRef<TextInput, FieldProps>(function Field({ label, h
 });
 
 export function Problem({ children }: { children: ReactNode }) {
+  const c = useColors();
+  const styles = useStyles();
   if (!children) return null;
   return (
     <View style={styles.problem} accessibilityLiveRegion="polite" accessibilityRole="alert">
-      <T style={{ color: color.danger, fontFamily: font.semibold }}>{children}</T>
+      <T style={{ color: c.badInk, fontFamily: font.semibold }}>{children}</T>
     </View>
   );
 }
 
 export function Loading() {
+  const c = useColors();
+  const styles = useStyles();
   return (
     <View style={[styles.page, styles.center]}>
-      <ActivityIndicator color={color.green} size="large" />
+      <ActivityIndicator color={c.accent} size="large" />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: color.page },
+const useStyles = makeStyles((c) =>
+  StyleSheet.create({
+  page: { flex: 1, backgroundColor: c.page },
   center: { alignItems: "center", justifyContent: "center" },
   column: { width: "100%", maxWidth, alignSelf: "center", paddingHorizontal: space.gutter, gap: space.gap },
-  footer: { borderTopWidth: 1, borderTopColor: color.line, backgroundColor: color.page, paddingTop: 12, paddingHorizontal: space.gutter },
+  footer: { borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.page, paddingTop: 12, paddingHorizontal: space.gutter },
   footerColumn: { width: "100%", maxWidth, alignSelf: "center", gap: 10 },
-  card: { backgroundColor: color.card, borderWidth: 1, borderColor: color.line, borderRadius: radius.card, padding: 16, gap: 10 },
-  list: { backgroundColor: color.line, borderWidth: 1, borderColor: color.line, borderRadius: radius.card, overflow: "hidden", gap: 1 },
-  row: { backgroundColor: color.card, paddingVertical: 12, paddingHorizontal: 16, minHeight: 56, flexDirection: "row", alignItems: "center", gap: 12 },
+  card: { backgroundColor: c.card, borderWidth: 1, borderColor: c.line, borderRadius: radius.card, padding: 16, gap: 10 },
+  list: { backgroundColor: c.line, borderWidth: 1, borderColor: c.line, borderRadius: radius.card, overflow: "hidden", gap: 1 },
+  row: { backgroundColor: c.card, paddingVertical: 12, paddingHorizontal: 16, minHeight: 56, flexDirection: "row", alignItems: "center", gap: 12 },
   pressed: { opacity: 0.75 },
   off: { opacity: 0.5 },
   button: { minHeight: 54, borderRadius: radius.button, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 },
   buttonInner: { flexDirection: "row", alignItems: "center", gap: 10 },
   buttonText: { fontFamily: font.bold, fontSize: 16 },
-  round: { width: touch, height: touch, borderRadius: touch / 2, backgroundColor: color.card, borderWidth: 1, borderColor: color.line, alignItems: "center", justifyContent: "center" },
+  round: { width: touch, height: touch, borderRadius: touch / 2, backgroundColor: c.card, borderWidth: 1, borderColor: c.line, alignItems: "center", justifyContent: "center" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { minHeight: touch, paddingHorizontal: 14, borderRadius: radius.chip, borderWidth: 1, borderColor: color.lineStrong, backgroundColor: color.card, justifyContent: "center" },
+  chip: { minHeight: touch, paddingHorizontal: 14, borderRadius: radius.chip, borderWidth: 1, borderColor: c.lineStrong, backgroundColor: c.card, justifyContent: "center" },
   chipWide: { flex: 1, alignItems: "center" },
-  chipOn: { backgroundColor: color.ink, borderColor: color.ink },
-  chipText: { fontFamily: font.bold, fontSize: 14, color: color.ink },
-  chipTextOn: { color: color.white },
+  chipOn: { backgroundColor: c.chosen, borderColor: c.chosen },
+  chipText: { fontFamily: font.bold, fontSize: 14, color: c.ink },
+  chipTextOn: { color: c.onChosen },
   field: { gap: 6 },
   input: {
     minHeight: 50,
     borderRadius: radius.field,
     borderWidth: 1,
-    borderColor: color.lineStrong,
-    backgroundColor: color.card,
+    borderColor: c.lineStrong,
+    backgroundColor: c.card,
     paddingHorizontal: 16,
     fontFamily: font.semibold,
     fontSize: 16,
-    color: color.ink,
+    color: c.ink,
   },
-  inputError: { borderColor: color.danger },
-  problem: { backgroundColor: color.dangerTint, borderRadius: 12, padding: 12 },
-});
+  inputError: { borderColor: c.bad },
+  problem: { backgroundColor: c.badTint, borderRadius: 12, padding: 12 },
+}),
+);

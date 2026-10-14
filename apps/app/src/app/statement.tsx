@@ -12,7 +12,7 @@ import { CategoryPicker } from "@/features/pickers";
 import { api, type BatchAnswer, type Payment } from "@/lib/api";
 import { CheckIcon } from "@/ui/icons";
 import { Button, Card, Field, List, Problem, Row, Screen, T } from "@/ui/kit";
-import { color, font, touch } from "@/ui/theme";
+import { font, makeStyles, touch, useColors } from "@/ui/theme";
 
 type Line = { amount: number; spentOn: string; shopName: string; category: CategoryId; statement: string; keep: boolean };
 type Clash = { line: Line; saved: Payment; keepBoth: boolean | null };
@@ -23,6 +23,8 @@ type Clash = { line: Line; saved: Payment; keepBoth: boolean | null };
  * saved in one go; ones that look already saved are asked about.
  */
 export default function Statement() {
+  const c = useColors();
+  const styles = useStyles();
   const [text, setText] = useState("");
   const [card, setCard] = useState(false);
   const [lines, setLines] = useState<Line[] | null>(null);
@@ -142,7 +144,7 @@ export default function Statement() {
     return (
       <Screen>
         <PageHead title="Statement" fallback="/add" />
-        <Card tone="green">
+        <Card tone="brand">
           <T kind="heading">{`${saved} payment${saved === 1 ? "" : "s"} saved`}</T>
           <T>{`They are in Activity and count towards this pay. Change any one there, and ${APP_NAME} remembers it for payments like it.`}</T>
           <Button label="See them in Activity" onPress={() => router.replace("/activity")} />
@@ -218,7 +220,7 @@ export default function Statement() {
                 style={[styles.check, line.keep && styles.checkOn]}
                 hitSlop={8}
               >
-                {line.keep ? <CheckIcon size={18} color={color.white} /> : null}
+                {line.keep ? <CheckIcon size={18} color={c.onAction} /> : null}
               </Pressable>
               <View style={{ flex: 1, gap: 6, opacity: line.keep ? 1 : 0.5 }}>
                 <View style={{ flexDirection: "row", gap: 10 }}>
@@ -278,7 +280,7 @@ export default function Statement() {
             if (text.trim()) readText(text, on);
           }}
           accessibilityLabel="Credit card statement"
-          trackColor={{ true: color.green, false: color.lineStrong }}
+          trackColor={{ true: c.action, false: c.lineStrong }}
         />
       </View>
       <Problem>{problem}</Problem>
@@ -289,18 +291,20 @@ export default function Statement() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) =>
+  StyleSheet.create({
   choices: { flexDirection: "row", gap: 10 },
   check: {
     width: 26,
     height: 26,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: color.lineStrong,
+    borderColor: c.lineStrong,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 2,
   },
-  checkOn: { backgroundColor: color.green, borderColor: color.green },
+  checkOn: { backgroundColor: c.action, borderColor: c.action },
   cardRow: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: touch },
-});
+}),
+);

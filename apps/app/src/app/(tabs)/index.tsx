@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { APP_NAME, nextPayday, poundsToPence, shortDate } from "@briv/core";
+import { APP_NAME, nextPayday, poundsToPence, shortDate, spendStatus, type SpendStatus } from "@briv/core";
 import { longDate, pounds } from "@/features/money";
 import { PaymentRow } from "@/features/payment-row";
 import { api, type Payment, type Summary } from "@/lib/api";
@@ -9,9 +9,11 @@ import { useMe } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
 import { SettingsIcon } from "@/ui/icons";
 import { Button, Card, Field, List, Problem, RoundButton, Row, Screen, T } from "@/ui/kit";
-import { color, font, radius } from "@/ui/theme";
+import { font, makeStyles, ON_HERO, radius, useColors } from "@/ui/theme";
 
 export default function Home() {
+  const c = useColors();
+  const styles = useStyles();
   const me = useMe();
   const summary = useLoad<Summary>("/me/summary");
   const s = summary.data;
@@ -47,7 +49,7 @@ export default function Home() {
       {s ? (
         <View style={styles.tiles}>
           <Tile label="Spending" value={pounds(s.spent)} />
-          <Tile label="Put away" value={pounds(s.moved)} ink={color.blue} />
+          <Tile label="Put away" value={pounds(s.moved)} ink={c.saved} />
           <Tile label="Spends" value={String(s.count)} />
         </View>
       ) : null}
@@ -59,7 +61,7 @@ export default function Home() {
           </T>
           {payments.length > 0 ? (
             <Pressable onPress={() => router.push("/activity")} accessibilityRole="link" hitSlop={10}>
-              <T kind="label" style={{ color: color.green }}>
+              <T kind="label" style={{ color: c.accent }}>
                 See all
               </T>
             </Pressable>
@@ -85,6 +87,7 @@ export default function Home() {
 
 /** What is safe to spend until payday, after the bills still to come. */
 function SafeCard({ summary: s }: { summary: Summary }) {
+  const c = useColors();
   const safe = s.safe;
   if (!safe) return null;
   const over = safe.safe < 0;
@@ -95,7 +98,7 @@ function SafeCard({ summary: s }: { summary: Summary }) {
         <T kind="small" style={{ fontFamily: font.semibold }}>
           {over ? "Over your take-home until payday" : "Safe to spend until payday"}
         </T>
-        <T kind="money" style={{ fontSize: 26, color: over ? color.danger : color.ink }}>
+        <T kind="money" style={{ fontSize: 26, color: over ? c.bad : c.ink }}>
           {pounds(Math.abs(safe.safe))}
         </T>
         <T kind="small">
@@ -115,7 +118,7 @@ function SafeCard({ summary: s }: { summary: Summary }) {
         </Row>
       ))}
       <Row onPress={() => router.push("/regulars")}>
-        <T kind="label" style={{ color: color.green, flex: 1 }}>
+        <T kind="label" style={{ color: c.accent, flex: 1 }}>
           Regular payments
         </T>
       </Row>
@@ -125,6 +128,7 @@ function SafeCard({ summary: s }: { summary: Summary }) {
 
 /** "Did £2,400 come in this pay?" Asked once a pay, so safe to spend uses what really came in. */
 function PayCheck({ usual, onDone }: { usual: number; onDone: () => void }) {
+  const c = useColors();
   const [other, setOther] = useState(false);
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
@@ -145,9 +149,9 @@ function PayCheck({ usual, onDone }: { usual: number; onDone: () => void }) {
   }
 
   return (
-    <Card tone="green">
+    <Card tone="brand">
       <T kind="strong">{`Did ${pounds(usual)} come in this pay?`}</T>
-      <T kind="small" style={{ color: color.inkSoft }}>
+      <T kind="small" style={{ color: c.inkSoft }}>
         Safe to spend uses what really came in.
       </T>
       {other ? (
@@ -167,10 +171,22 @@ function PayCheck({ usual, onDone }: { usual: number; onDone: () => void }) {
 }
 
 function SpentCard({ summary: s, hasPayday }: { summary: Summary; hasPayday: boolean }) {
+  const c = useColors();
+  const styles = useStyles();
   const share = s.takeHome ? Math.min(s.spent / s.takeHome, 1) : 0;
   const diff = s.spent - s.lastPaySameDay;
+  const status: SpendStatus = spendStatus({
+    spent: s.spent,
+    takeHome: s.takeHome,
+    safe: s.safe?.safe ?? null,
+    lastPaySameDay: s.lastPaySameDay,
+    lastPaySpent: s.lastPaySpent,
+  });
+  const tone = ON_HERO[status === "steady" ? "good" : status === "watch" ? "warn" : "bad"];
   const pace =
-    s.lastPaySpent === 0
+    s.takeHome && s.spent > s.takeHome
+      ? `${pounds(s.spent - s.takeHome)} over your take-home`
+      : s.lastPaySpent === 0
       ? `Your first pay period with ${APP_NAME}`
       : diff === 0
         ? "Same as this point last pay"
@@ -179,7 +195,7 @@ function SpentCard({ summary: s, hasPayday }: { summary: Summary; hasPayday: boo
     ? `Day ${s.period.day} of ${s.period.days} · payday ${nextPayday(s.period)}`
     : `Day ${s.period.day} of ${s.period.days} · ${s.period.label}`;
   return (
-    <View style={styles.hero} accessibilityRole="summary">
+    <View style={[styles.hero, status === "over" && { backgroundColor: c.heroOver }]} accessibilityRole="summary">
       <View style={{ gap: 4 }}>
         <T style={styles.heroLabel}>Spent so far this pay</T>
         <T style={styles.heroAmount}>{pounds(s.spent)}</T>
@@ -191,51 +207,57 @@ function SpentCard({ summary: s, hasPayday }: { summary: Summary; hasPayday: boo
           accessibilityRole="progressbar"
           accessibilityLabel={`${Math.round(share * 100)}% of take-home spent`}
         >
-          <View style={[styles.fill, { width: `${Math.round(share * 100)}%` }]} />
+          <View style={[styles.fill, { width: `${Math.round(share * 100)}%`, backgroundColor: tone.fill }]} />
         </View>
       ) : null}
       <T style={styles.heroLabel}>{when}</T>
-      <View style={styles.pace}>
-        <T style={styles.paceText}>{pace}</T>
+      <View style={[styles.pace, { backgroundColor: tone.chip }]}>
+        <View style={[styles.paceDot, { backgroundColor: tone.ink }]} />
+        <T style={[styles.paceText, { color: tone.ink }]}>{pace}</T>
       </View>
     </View>
   );
 }
 
-function Tile({ label, value, ink = color.ink }: { label: string; value: string; ink?: string }) {
+function Tile({ label, value, ink }: { label: string; value: string; ink?: string }) {
+  const c = useColors();
+  const styles = useStyles();
   return (
     <View style={styles.tile}>
       <T kind="small" style={{ fontFamily: font.semibold, fontSize: 12 }} numberOfLines={2}>
         {label}
       </T>
-      <T kind="money" style={{ fontSize: value.length > 7 ? 15 : 17, color: ink }}>
+      <T kind="money" style={{ fontSize: value.length > 7 ? 15 : 17, color: ink ?? c.ink }}>
         {value}
       </T>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) =>
+  StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 12 },
   sectionHead: { flexDirection: "row", alignItems: "center", gap: 12 },
-  heroPlaceholder: { height: 220, borderRadius: radius.hero, backgroundColor: color.greenTint },
-  hero: { backgroundColor: color.green, borderRadius: radius.hero, padding: 22, gap: 14 },
-  heroLabel: { color: color.greenOnDark, fontFamily: font.semibold, fontSize: 14 },
-  heroAmount: { color: color.white, fontFamily: font.heavy, fontSize: 42, lineHeight: 50, letterSpacing: -1, fontVariant: ["tabular-nums"] },
-  track: { height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.2)", overflow: "hidden" },
-  fill: { height: 8, borderRadius: 4, backgroundColor: color.white },
-  pace: { alignSelf: "flex-start", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12 },
-  paceText: { color: color.white, fontFamily: font.bold, fontSize: 13 },
+  heroPlaceholder: { height: 220, borderRadius: radius.hero, backgroundColor: c.accentTint },
+  hero: { backgroundColor: c.hero, borderRadius: radius.hero, padding: 22, gap: 14 },
+  heroLabel: { color: c.onHeroSoft, fontFamily: font.semibold, fontSize: 14 },
+  heroAmount: { color: c.onHero, fontFamily: font.heavy, fontSize: 42, lineHeight: 50, letterSpacing: -1, fontVariant: ["tabular-nums"] },
+  track: { height: 8, borderRadius: 4, backgroundColor: c.heroTrack, overflow: "hidden" },
+  fill: { height: 8, borderRadius: 4, backgroundColor: c.onHero },
+  pace: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12 },
+    paceDot: { width: 8, height: 8, borderRadius: 4 },
+  paceText: { color: c.onHero, fontFamily: font.bold, fontSize: 13 },
   tiles: { flexDirection: "row", gap: 10 },
   tile: {
     flex: 1,
     minHeight: 92,
     justifyContent: "space-between",
-    backgroundColor: color.card,
+    backgroundColor: c.card,
     borderWidth: 1,
-    borderColor: color.line,
+    borderColor: c.line,
     borderRadius: 16,
     padding: 14,
     gap: 6,
   },
-});
+}),
+);

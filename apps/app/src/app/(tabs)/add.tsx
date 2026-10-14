@@ -7,7 +7,7 @@ import { pounds } from "@/features/money";
 import { api, ApiError, type Payment } from "@/lib/api";
 import { CloseIcon } from "@/ui/icons";
 import { Button, Card, Chip, Chips, Field, List, Problem, RoundButton, Row, Screen, T } from "@/ui/kit";
-import { color, font, radius } from "@/ui/theme";
+import { font, makeStyles, radius, useColors } from "@/ui/theme";
 
 const SOON = [
   { title: "Scan a receipt", line: "Shop, items and total" },
@@ -20,6 +20,8 @@ const SOON = [
 type Saved = Pick<Payment, "id" | "amount" | "shopName" | "spentOn">;
 
 export default function Add() {
+  const c = useColors();
+  const styles = useStyles();
   const [amount, setAmount] = useState("");
   const [shop, setShop] = useState("");
   const [when, setWhen] = useState<"today" | "yesterday" | "other">("today");
@@ -104,7 +106,7 @@ export default function Add() {
             <T kind="strong">Bank or card statement</T>
             <T kind="small">A CSV from your banking app, or pasted lines. Check them, then save in one go.</T>
           </View>
-          <T kind="label" style={{ color: color.green }}>
+          <T kind="label" style={{ color: c.accent }}>
             Open
           </T>
         </Row>
@@ -159,7 +161,7 @@ export default function Add() {
             ))}
           </Chips>
           {errors.category ? (
-            <T kind="small" style={{ color: color.danger }}>
+            <T kind="small" style={{ color: c.bad }}>
               {errors.category}
             </T>
           ) : (
@@ -168,11 +170,11 @@ export default function Add() {
         </View>
         <Problem>{problem}</Problem>
         {duplicate ? (
-          <Card tone="amber">
+          <Card tone="warn">
             <T kind="heading" accessibilityRole="header">
               Already saved?
             </T>
-            <T style={{ color: color.amberInk }}>
+            <T style={{ color: c.warnInk }}>
               {`${duplicate.shopName ?? "A payment"}, ${pounds(duplicate.amount)} on ${duplicate.spentOn.split("-").reverse().join("/")} is already in ${APP_NAME}.`}
             </T>
             <Button label="Keep the saved one" kind="secondary" disabled={busy} onPress={() => setDuplicate(null)} />
@@ -200,7 +202,8 @@ export default function Add() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) =>
+  StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 12 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   soon: {
@@ -209,9 +212,10 @@ const styles = StyleSheet.create({
     minHeight: 96,
     borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: color.line,
+    borderColor: c.line,
     borderStyle: "dashed",
     padding: 14,
     gap: 6,
   },
-});
+}),
+);

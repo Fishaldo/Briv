@@ -1,11 +1,13 @@
 import { StyleSheet, View } from "react-native";
 import type { Payment } from "@/lib/api";
 import { Row, T } from "@/ui/kit";
-import { font } from "@/ui/theme";
+import { font, makeStyles, useColors } from "@/ui/theme";
 import { categoryColours, initialOf, paymentLine, pounds } from "./money";
 
 export function PaymentRow({ payment, onPress }: { payment: Payment; onPress?: () => void }) {
-  const tone = categoryColours(payment.category);
+  const c = useColors();
+  const styles = useStyles();
+  const tone = categoryColours(payment.category, c);
   const name = payment.toPerson ? "Paid to a person" : payment.shopName || "Card payment";
   return (
     <Row onPress={onPress} label={`${name}, ${pounds(payment.amount)}, ${paymentLine(payment)}`}>
@@ -28,7 +30,9 @@ export function PaymentRow({ payment, onPress }: { payment: Payment; onPress?: (
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles(() =>
+  StyleSheet.create({
   initial: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   initialText: { fontFamily: font.heavy, fontSize: 15 },
-});
+}),
+);

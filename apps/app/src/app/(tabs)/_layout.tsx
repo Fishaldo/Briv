@@ -3,13 +3,14 @@ import { forwardRef, type ComponentType } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HomeIcon, InsightsIcon, OffersIcon, PlanIcon, PlusIcon } from "@/ui/icons";
-import { color, font, maxWidth } from "@/ui/theme";
+import { font, makeStyles, maxWidth, useColors } from "@/ui/theme";
 
 type IconType = ComponentType<{ size?: number; color?: string }>;
 
 /** Home, Plan, Add, Insights, Offers. Add sits raised in the middle. */
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
+  const styles = useStyles();
   return (
     <Tabs>
       <TabSlot style={{ flex: 1 }} />
@@ -36,7 +37,9 @@ export default function TabsLayout() {
 
 const TabButton = forwardRef<View, TabTriggerSlotProps & { label: string; Icon: IconType; raised?: boolean }>(
   function TabButton({ label, Icon, raised, isFocused, ...props }, ref) {
-    const tint = isFocused ? color.green : color.muted;
+    const c = useColors();
+    const styles = useStyles();
+    const tint = isFocused ? c.accent : c.muted;
     return (
       <Pressable
         ref={ref}
@@ -48,13 +51,13 @@ const TabButton = forwardRef<View, TabTriggerSlotProps & { label: string; Icon: 
       >
         {raised ? (
           <View style={styles.raised}>
-            <Icon size={26} color={color.white} />
+            <Icon size={26} color={c.onAction} />
           </View>
         ) : (
           <Icon size={24} color={tint} />
         )}
         <Text
-          style={[styles.label, { color: raised && !isFocused ? color.ink : tint, fontFamily: isFocused ? font.heavy : font.semibold }]}
+          style={[styles.label, { color: raised && !isFocused ? c.ink : tint, fontFamily: isFocused ? font.heavy : font.semibold }]}
           maxFontSizeMultiplier={1.2}
         >
           {label}
@@ -64,12 +67,13 @@ const TabButton = forwardRef<View, TabTriggerSlotProps & { label: string; Icon: 
   },
 );
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((c) =>
+  StyleSheet.create({
   bar: {
     flexDirection: "row",
-    backgroundColor: color.card,
+    backgroundColor: c.card,
     borderTopWidth: 1,
-    borderTopColor: color.line,
+    borderTopColor: c.line,
     paddingTop: 8,
     paddingHorizontal: 8,
     width: "100%",
@@ -81,10 +85,11 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: color.green,
+    backgroundColor: c.action,
     alignItems: "center",
     justifyContent: "center",
     marginTop: -22,
   },
   label: { fontSize: 12 },
-});
+}),
+);

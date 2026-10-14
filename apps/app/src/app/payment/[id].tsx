@@ -9,10 +9,11 @@ import { CategoryPicker } from "@/features/pickers";
 import { api, type Payment } from "@/lib/api";
 import { useLoad } from "@/lib/use-load";
 import { Button, Card, Field, Problem, Screen, T } from "@/ui/kit";
-import { color } from "@/ui/theme";
+import { useColors } from "@/ui/theme";
 
 /** One spend: change its amount, shop, day, category or note, or delete it. */
 export default function PaymentScreen() {
+  const c = useColors();
   const { id } = useLocalSearchParams<{ id: string }>();
   const loaded = useLoad<{ payment: Payment }>(id ? `/me/payments/${id}` : null);
   const payment = loaded.data?.payment;
@@ -121,7 +122,7 @@ export default function PaymentScreen() {
           {category && !countsAsSpending(category) ? <T kind="small">Kept, but never counted as spending.</T> : null}
         </View>
         {(renamed || refiled) && !payment.toPerson ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: color.greenTint, borderRadius: 12, padding: 12 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: c.accentTint, borderRadius: 12, padding: 12 }}>
             <View style={{ flex: 1, gap: 2 }}>
               <T kind="strong">Change payments like this too</T>
               <T kind="small">Past ones with the same statement text, and future ones.</T>
@@ -130,14 +131,14 @@ export default function PaymentScreen() {
               value={applyToSame}
               onValueChange={setApplyToSame}
               accessibilityLabel="Change payments like this too"
-              trackColor={{ true: color.green, false: color.lineStrong }}
+              trackColor={{ true: c.action, false: c.lineStrong }}
             />
           </View>
         ) : null}
         <Field label="Note" value={note} onChangeText={setNote} placeholder="Optional, like for mum's birthday" maxLength={280} />
         <Problem>{problem}</Problem>
         {done ? (
-          <T kind="strong" style={{ color: color.green }} accessibilityLiveRegion="polite">
+          <T kind="strong" style={{ color: c.good }} accessibilityLiveRegion="polite">
             {done}
           </T>
         ) : null}
@@ -145,9 +146,9 @@ export default function PaymentScreen() {
       </Card>
 
       {confirmDelete ? (
-        <Card tone="amber">
+        <Card tone="warn">
           <T kind="strong">Delete this spend?</T>
-          <T style={{ color: color.amberInk }}>{`${pounds(payment.amount)} on ${dayText(payment.spentOn)} is removed. This can't be undone.`}</T>
+          <T style={{ color: c.warnInk }}>{`${pounds(payment.amount)} on ${dayText(payment.spentOn)} is removed. This can't be undone.`}</T>
           <Button label="Delete it" kind="danger" busy={busy === "delete"} onPress={remove} />
           <Button label="Keep it" kind="quiet" onPress={() => setConfirmDelete(false)} />
         </Card>

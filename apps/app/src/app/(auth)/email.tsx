@@ -5,11 +5,12 @@ import { APP_NAME } from "@briv/core";
 import { authClient } from "@/lib/auth-client";
 import { BackIcon } from "@/ui/icons";
 import { Button, Field, Problem, RoundButton, Screen, T } from "@/ui/kit";
-import { color } from "@/ui/theme";
+import { useColors } from "@/ui/theme";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export default function EmailSignIn() {
+  const c = useColors();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -73,7 +74,7 @@ export default function EmailSignIn() {
         <T kind="title" accessibilityRole="header">
           {sentTo ? "Check your email" : "Your email"}
         </T>
-        <T style={{ color: color.muted }}>
+        <T style={{ color: c.muted }}>
           {sentTo ? `We sent a 6-number code to ${sentTo}. It works for 5 minutes.` : `${APP_NAME} emails you a code. No password to remember.`}
         </T>
       </View>
