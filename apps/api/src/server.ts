@@ -6,7 +6,9 @@ import { createDb } from "@briv/db";
 import { createApp } from "./app.ts";
 import { createAuth } from "./auth.ts";
 import { readEnv } from "./env.ts";
+import { jsonLogger, safeError } from "./log.ts";
 import { createMailer } from "./mail.ts";
+import { reporterFor } from "./report.ts";
 import { postcodesTown } from "./town.ts";
 
 const env = readEnv();
@@ -18,8 +20,24 @@ const handle = createDb(env.DATABASE_URL, existsSync(bundled) ? { migrationsFold
 // Staging and live run migrations as a release step instead.
 if (handle.kind === "pglite") await handle.migrate();
 
-const auth = createAuth(handle.db, env, createMailer(env));
-const app = createApp({ db: handle.db, auth, env, resolveTown: postcodesTown });
+const report = reporterFor(env);
+// Errors outside a request are logged and reported the same safe way as those inside one.
+process.on("unhandledRejection", (reason) => {
+  const problem = safeError(reason);
+  jsonLogger("error", "unhandled_rejection", problem);
+  report?.(problem, { source: "server" });
+});
+process.on("uncaughtException", (error) => {
+  const problem = safeError(error);
+  jsonLogger("error", "crash", problem);
+  report?.(problem, { source: "server" });
+  // The process is in an unknown state: give the report a moment to leave, then stop. The host restarts it.
+  setTimeout(() => process.exit(1), 2000);
+});
+
+const mail = createMailer(env);
+const auth = createAuth(handle.db, env, mail);
+const app = createApp({ db: handle.db, auth, env, mail, report, resolveTown: postcodesTown });
 
 const server = serve({ fetch: app.fetch, port: env.PORT, hostname: "0.0.0.0" }, (info) => {
   console.log(`${APP_NAME} server on http://localhost:${info.port}`);

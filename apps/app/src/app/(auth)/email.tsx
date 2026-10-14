@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useRef, useState } from "react";
-import { Platform, TextInput, View } from "react-native";
+import { Platform, type TextInput, View } from "react-native";
 import { APP_NAME } from "@briv/core";
 import { authClient } from "@/lib/auth-client";
 import { BackIcon } from "@/ui/icons";

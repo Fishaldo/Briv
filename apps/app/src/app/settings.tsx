@@ -18,7 +18,9 @@ export default function Settings() {
   const [saved, setSaved] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  /** Deleting: closed, asked "are you sure", then waiting for the emailed code. */
+  const [deleting, setDeleting] = useState<"closed" | "confirm" | "code">("closed");
+  const [deleteCode, setDeleteCode] = useState("");
 
   async function run(what: string, job: () => Promise<Me | void>) {
     setBusy(what);
@@ -121,25 +123,58 @@ export default function Settings() {
         <T kind="heading">Account</T>
         <T kind="small">{`Signed in as ${me.email}`}</T>
         <Button label="Sign out" kind="secondary" onPress={signOut} />
-        {confirmDelete ? (
+        {deleting === "confirm" ? (
           <Card tone="amber">
             <T kind="strong">Delete your account?</T>
             <T style={{ color: color.amberInk }}>Every spend, place and setting is removed. This can't be undone.</T>
+            <T style={{ color: color.amberInk }}>{`We'll email a code to ${me.email} to check it's you.`}</T>
             <Button
-              label="Yes, delete everything"
+              label="Email me the code"
+              kind="danger"
+              busy={busy === "code"}
+              onPress={async () => {
+                const ok = await run("code", async () => {
+                  await api("/me/delete-code", { body: {} });
+                });
+                if (ok) setDeleting("code");
+              }}
+            />
+            <Button label="Keep my account" kind="quiet" onPress={() => setDeleting("closed")} />
+          </Card>
+        ) : deleting === "code" ? (
+          <Card tone="amber">
+            <T kind="strong">Enter the code from the email</T>
+            <Field
+              label="6-digit code"
+              value={deleteCode}
+              onChangeText={(text) => setDeleteCode(text.replace(/\D/g, "").slice(0, 6))}
+              keyboardType="number-pad"
+              textContentType="oneTimeCode"
+              autoComplete="one-time-code"
+            />
+            <Button
+              label="Delete everything"
               kind="danger"
               busy={busy === "delete"}
+              disabled={deleteCode.length !== 6}
               onPress={() =>
                 run("delete", async () => {
-                  await api("/me", { method: "DELETE" });
+                  await api("/me", { method: "DELETE", body: { code: deleteCode } });
                   await signOut();
                 })
               }
             />
-            <Button label="Keep my account" kind="quiet" onPress={() => setConfirmDelete(false)} />
+            <Button
+              label="Keep my account"
+              kind="quiet"
+              onPress={() => {
+                setDeleting("closed");
+                setDeleteCode("");
+              }}
+            />
           </Card>
         ) : (
-          <Button label="Delete my account" kind="quiet" onPress={() => setConfirmDelete(true)} style={{ alignSelf: "flex-start" }} />
+          <Button label="Delete my account" kind="quiet" onPress={() => setDeleting("confirm")} style={{ alignSelf: "flex-start" }} />
         )}
       </View>
       <T kind="small" style={{ fontFamily: font.semibold }}>

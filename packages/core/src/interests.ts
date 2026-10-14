@@ -658,6 +658,7 @@ export const INTERESTS: InterestDef[] = [
     shops: [
       "the perfume shop",
       "perfume shop",
+      "jo malone",
       "fragrance direct",
       "the fragrance shop",
       "fragrance shop",

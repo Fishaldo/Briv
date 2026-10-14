@@ -8,3 +8,11 @@ nodeLinker: hoisted
 
 onlyBuiltDependencies:
   - esbuild
+
+# Known advisories with no fix published, inside Expo's build tools only (the
+# Expo command line and Metro, which run on a laptop or in a build, never in the
+# app or the server). Checked 14 Oct 2026. Remove each line once Expo ships a fix.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-86w9-cpqp-85rv # node-forge, via @expo/cli
+    - GHSA-vfj7-8cjw-p6xm # braces, via metro-file-map

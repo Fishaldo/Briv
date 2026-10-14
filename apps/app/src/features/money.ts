@@ -1,10 +1,10 @@
 import { categoryLabel, countsAsSpending, dayLabel, formatGBP, type CategoryId } from "@briv/core";
 import { color } from "@/ui/theme";
 
-/** £1,234 for big round figures, £12.50 otherwise. */
+/** £1,234 when there are no pence, £1,234.56 when there are: never rounded. */
 export function pounds(pence: number): string {
-  if (Math.abs(pence) < 100_000) return formatGBP(pence);
-  return formatGBP(Math.round(pence / 100) * 100).replace(/\.00$/, "");
+  const text = formatGBP(pence);
+  return pence % 100 === 0 ? text.replace(/\.00$/, "") : text;
 }
 
 /** Spending is green; savings, investments and transfers are blue. */

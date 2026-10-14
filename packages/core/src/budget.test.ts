@@ -47,12 +47,12 @@ describe("a budget from your own pays", () => {
     tx("Tesco", 50000, "2026-10-01", "groceries"),
   ];
 
-  it("averages each category over the last pays, rounded up to £5, when there is no take-home to fit", () => {
+  it("averages each category over the last pays: flexible lines rounded up to £5, never-cut lines exact", () => {
     const { lines } = suggestBudget(txs, spans);
     const byCategory = Object.fromEntries(lines.map((line) => [line.category, line.amountPence]));
     assert.equal(byCategory.groceries, 20000);
     assert.equal(byCategory.housing, 85000);
-    assert.equal(byCategory.health, 1000);
+    assert.equal(byCategory.health, 600);
     assert.equal(byCategory.dining, undefined);
     assert.equal(byCategory.travel, undefined);
   });
@@ -186,8 +186,37 @@ describe("fitting the take-home", () => {
       wanted.push(want("housing", 50000 + ((seed * 104729) % 40000)));
       const takeHomePence = 150000 + ((seed * 15485863) % 150000);
       const plan = planBudget({ wanted, takeHomePence, usualSavingsPence: (seed * 31) % 20000 });
-      if (!plan.fixedOver) assert.ok(plan.plannedPence <= takeHomePence, `seed ${seed}: ${plan.plannedPence} > ${takeHomePence}`);
-      for (const line of plan.lines) assert.equal(line.amountPence % 500, 0, `seed ${seed}: ${line.category} ${line.amountPence}`);
+      const fixedRaw = wanted.filter((line) => line.neverCut).reduce((sum, line) => sum + line.usualPence, 0);
+      if (fixedRaw <= takeHomePence) assert.ok(plan.plannedPence <= takeHomePence, `seed ${seed}: ${plan.plannedPence} > ${takeHomePence}`);
+      for (const line of plan.lines) {
+        if (line.kind !== "fixed") assert.equal(line.amountPence % 500, 0, `seed ${seed}: ${line.category} ${line.amountPence}`);
+      }
+    }
+  });
+});
+
+describe("never over the take-home", () => {
+  it("fits when never-cut lines only just fit", () => {
+    // Found by the review: rounding never-cut lines up to £5 pushed this plan over.
+    const plan = planBudget({ wanted: [want("housing", 186709), want("dining", 4000)], takeHomePence: 187415, usualSavingsPence: 0 });
+    assert.equal(plan.fixedOver, false);
+    assert.ok(plan.plannedPence <= 187415, String(plan.plannedPence));
+  });
+
+  it("holds across 20,000 random plans, judged on the real amounts", () => {
+    let seed = 7;
+    const rand = (n: number) => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed % n;
+    };
+    const cats: CategoryId[] = ["housing", "bills", "groceries", "dining", "fashion", "sent", "transport", "subscriptions"];
+    for (let i = 0; i < 20000; i++) {
+      const wanted = cats.filter(() => rand(3) > 0).map((category) => want(category, rand(120000) + 1));
+      const takeHomePence = rand(300000) + 1000;
+      const plan = planBudget({ wanted, takeHomePence, usualSavingsPence: rand(30000) });
+      const fixedRaw = wanted.filter((line) => line.neverCut).reduce((sum, line) => sum + line.usualPence, 0);
+      assert.ok(Number.isFinite(plan.plannedPence));
+      if (fixedRaw <= takeHomePence) assert.ok(plan.plannedPence <= takeHomePence, `case ${i}: ${plan.plannedPence} > ${takeHomePence}`);
     }
   });
 });

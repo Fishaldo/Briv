@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { api, ApiError, type Me } from "./api";
+import { api, ApiError, onSignedOut, type Me } from "./api";
 import { authClient } from "./auth-client";
 
 /**
@@ -77,9 +77,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [userId, refresh]);
 
   const signOut = useCallback(async () => {
-    await authClient.signOut();
+    await authClient.signOut().catch(() => undefined);
     setMe(null);
   }, []);
+
+  // Any call the server answers with "signed out" ends the session here too.
+  useEffect(() => {
+    onSignedOut(() => void signOut());
+    return () => onSignedOut(null);
+  }, [signOut]);
 
   const stage: Stage = useMemo(() => {
     if (session.isPending) return "loading";

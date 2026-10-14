@@ -133,6 +133,24 @@ export const authPasskeys = pgTable(
   (t) => [index("auth_passkeys_user_idx").on(t.userId), index("auth_passkeys_credential_idx").on(t.credentialID)],
 );
 
+/** Sign-in attempts counted by address, shared by every server, so limits hold however many servers run. */
+export const authRateLimits = pgTable("auth_rate_limits", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+});
+
+/**
+ * Briv's own counters for things that must not be repeated too often, such as
+ * codes sent to one email address. The key is a hash, never the address itself.
+ */
+export const requestLimits = pgTable("request_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull(),
+  resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
+});
+
 /* ------------------------------------------------------------------ */
 /* About the person                                                    */
 /* ------------------------------------------------------------------ */
@@ -399,9 +417,11 @@ export const remindersSent = pgTable(
       .notNull()
       .references(() => regularPayments.id, { onDelete: "cascade" }),
     dueOn: date("due_on").notNull(),
+    /** Which reminder: 7 days, 3 days or 2 working days before. */
+    step: smallint("step").notNull().default(7),
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [uniqueIndex("reminders_sent_regular_due_idx").on(t.regularId, t.dueOn)],
+  (t) => [uniqueIndex("reminders_sent_regular_due_step_idx").on(t.regularId, t.dueOn, t.step)],
 );
 
 export const budgets = pgTable(

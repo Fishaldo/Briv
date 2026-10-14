@@ -10,13 +10,13 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "test": "echo \"app has no unit tests yet\"",
-    "build": "expo export --platform web",
-    "lint": "expo lint"
+    "build": "expo export --platform web"
   },
   "dependencies": {
     "@better-auth/expo": "^1.7.7",
-    "@expo-google-fonts/manrope": "^0.4.2",
+    "@briv/contract": "workspace:*",
     "@briv/core": "workspace:*",
+    "@expo-google-fonts/manrope": "^0.4.2",
     "better-auth": "^1.7.7",
     "expo": "~57.0.28",
     "expo-constants": "~57.0.21",

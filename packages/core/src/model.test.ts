@@ -61,15 +61,34 @@ describe("categories", () => {
 
 describe("pay period", () => {
   it("runs from payday to the day before the next payday", () => {
+    // 25 October 2026 is a Sunday, so that pay arrives on Friday the 23rd.
     const span = paySpan(new Date(2026, 9, 13), 25);
     assert.equal(span.start, "2026-09-25");
-    assert.equal(span.end, "2026-10-24");
+    assert.equal(span.end, "2026-10-22");
   });
 
   it("starts on payday itself", () => {
-    const span = paySpan(new Date(2026, 9, 25), 25);
-    assert.equal(span.start, "2026-10-25");
+    const span = paySpan(new Date(2026, 7, 25), 25);
+    assert.equal(span.start, "2026-08-25");
+    assert.equal(span.end, "2026-09-24");
+  });
+
+  it("starts on the Friday when payday falls at the weekend", () => {
+    const span = paySpan(new Date(2026, 9, 23), 25);
+    assert.equal(span.start, "2026-10-23");
     assert.equal(span.end, "2026-11-24");
+  });
+
+  it("follows the last working day and last Friday rules", () => {
+    // 31 August 2026 is a bank holiday Monday.
+    assert.equal(paySpan(new Date(2026, 8, 10), { rule: "last_working_day" }).start, "2026-08-28");
+    assert.equal(paySpan(new Date(2026, 9, 31), { rule: "last_friday" }).start, "2026-10-30");
+  });
+
+  it("uses the UK date, not the server's clock", () => {
+    // 23:30 UTC on 22 October is 00:30 on the 23rd in London, which is payday.
+    const span = paySpan(new Date(Date.UTC(2026, 9, 22, 23, 30)), 25);
+    assert.equal(span.start, "2026-10-23");
   });
 
   it("uses the calendar month when there is no payday", () => {
@@ -78,9 +97,10 @@ describe("pay period", () => {
     assert.equal(span.end, "2026-02-28");
   });
 
-  it("moves payday to the last day in a short month", () => {
+  it("moves payday to the last day in a short month, then to a working day", () => {
+    // 28 February 2026 is a Saturday.
     const span = paySpan(new Date(2026, 1, 28), 31);
-    assert.equal(span.start, "2026-02-28");
+    assert.equal(span.start, "2026-02-27");
     assert.equal(span.end, "2026-03-30");
   });
 
@@ -163,5 +183,36 @@ describe("already saved?", () => {
 
   it("does not match a different shop", () => {
     assert.equal(samePayment(saved, { merchant: "Aldi", amountPence: 2450, spentOn: "2026-10-01" }), false);
+  });
+});
+
+describe("said out loud", () => {
+  it("turns spoken pounds into an amount Briv can read", async () => {
+    const { spokenToAlert } = await import("./model.ts");
+    assert.equal(spokenToAlert("about 20 pounds at ASDA groceries"), "about £20 at ASDA groceries");
+    assert.equal(spokenToAlert("£4 and 20p at Greggs"), "£4.20 at Greggs");
+    const alert = parseAlert(spokenToAlert("about 20 pounds at Asda groceries"));
+    assert.equal(alert.amountPence, 2000);
+    assert.equal(alert.category, "groceries");
+  });
+});
+
+describe("keywords are whole words", () => {
+  it("does not find a shop word inside another word", () => {
+    assert.equal(parseAlert("Transfer to current account £500.00").category, "transfers");
+    assert.equal(parseAlert("Torrent Media £5.00").category, "other");
+    assert.equal(parseAlert("Bolton Wanderers £30.00").category, "other");
+    assert.equal(parseAlert("ParentPay £12.00").category, "kids");
+  });
+
+  it("still knows a shop with an s or 's on the end", () => {
+    assert.equal(parseAlert("McDonald's £5.49").category, "dining");
+    assert.equal(parseAlert("SAINSBURYS £20.00").category, "groceries");
+    assert.equal(parseAlert("Nandos £30.00").category, "dining");
+    assert.equal(parseAlert("M&S Food £8.00").category, "groceries");
+  });
+
+  it("lets money moved win over a shop word", () => {
+    assert.equal(parseAlert("Transfer to savings account Tesco Bank £100.00").category, "savings");
   });
 });
