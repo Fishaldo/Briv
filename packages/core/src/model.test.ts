@@ -184,6 +184,13 @@ describe("already saved?", () => {
   it("does not match a different shop", () => {
     assert.equal(samePayment(saved, { merchant: "Aldi", amountPence: 2450, spentOn: "2026-10-01" }), false);
   });
+
+  it("matches a tidied name against the printed statement line", () => {
+    const day = { amountPence: 1800, spentOn: "2026-10-10" };
+    assert.equal(samePayment({ merchant: "Nando’s", ...day }, { merchant: "NANDOS NEWCASTLE", ...day }), true);
+    assert.equal(samePayment({ merchant: "Sainsbury's", ...day }, { merchant: "SAINSBURYS S/MKT", ...day }), true);
+    assert.equal(samePayment({ merchant: "MyPerfectCV", ...day }, { merchant: "BLD*MYPERFECTCV.CO 4421", ...day }), true);
+  });
 });
 
 describe("said out loud", () => {
