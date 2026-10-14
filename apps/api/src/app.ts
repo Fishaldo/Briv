@@ -17,6 +17,7 @@ import type { Mailer } from "./mail.ts";
 import { personFor } from "./people.ts";
 import { errorRoutes } from "./routes/errors.ts";
 import { meRoutes } from "./routes/me.ts";
+import { moneyRoutes } from "./routes/money.ts";
 import { paymentRoutes } from "./routes/payments.ts";
 import type { TownResolver } from "./town.ts";
 
@@ -68,7 +69,7 @@ export function createApp(deps: AppDeps) {
       origin: (origin) => (env.origins.includes(origin) ? origin : null),
       credentials: true,
       allowHeaders: ["Content-Type", "Authorization", "expo-origin"],
-      allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+      allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       maxAge: 600,
     }),
   );
@@ -132,6 +133,7 @@ export function createApp(deps: AppDeps) {
 
   me.route("/", meRoutes(routeDeps, person));
   me.route("/", paymentRoutes(routeDeps, person));
+  me.route("/", moneyRoutes(routeDeps, person));
   me.route("/", errorRoutes(routeDeps));
   app.route("/me", me);
   return app;

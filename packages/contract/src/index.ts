@@ -86,6 +86,83 @@ export const newPayment = z
   .strict();
 export type NewPayment = z.input<typeof newPayment>;
 
+/** Changing a saved spend. With `applyToSame`, every payment with the same statement text changes too, and future ones arrive that way. */
+export const paymentChange = z
+  .object({
+    amount: z.number().int().positive().max(100_000_000),
+    spentOn: z.string().refine(validDate, "Use a real date, like 2026-10-13."),
+    shopName: plainText(80).nullable(),
+    category: z.string().refine(isCategory, `Pick one of ${APP_NAME}'s categories.`),
+    kind: plainText(40).nullable(),
+    note: plainText(280).nullable(),
+    toPerson: z.boolean(),
+    applyToSame: z.boolean(),
+  })
+  .partial()
+  .strict();
+export type PaymentChange = z.input<typeof paymentChange>;
+
+/** The most payments one statement import takes; a longer file is sent in parts. */
+export const MAX_BATCH = 300;
+
+/** Payments read from a bank statement or a screenshot, checked by the person, saved together. */
+export const paymentBatch = z
+  .object({
+    source: z.enum(["statement", "receipt", "message"]).default("statement"),
+    rows: z
+      .array(
+        z
+          .object({
+            amount: z.number().int().positive().max(100_000_000),
+            spentOn: z.string().refine(validDate, "Use a real date, like 2026-10-13."),
+            shopName: plainText(80).nullable(),
+            category: z.string().refine(isCategory, `Pick one of ${APP_NAME}'s categories.`),
+            statement: plainText(500).optional(),
+            /** Saved anyway when it looks already saved: the person said keep both. */
+            keepBoth: z.boolean().optional(),
+          })
+          .strict(),
+      )
+      .min(1, "Pick at least one payment to save.")
+      .max(MAX_BATCH, `Up to ${MAX_BATCH} payments at a time.`),
+  })
+  .strict();
+export type PaymentBatch = z.input<typeof paymentBatch>;
+
+/** This pay period's take-home, as it really came in. */
+export const payConfirm = z.object({ takeHome: z.number().int().min(0).max(100_000_000) }).strict();
+
+/** The most lines a budget holds. */
+export const MAX_BUDGET_LINES = 40;
+
+export const budgetSave = z
+  .object({
+    lines: z
+      .array(
+        z
+          .object({
+            name: plainText(40),
+            category: z.string().refine(isCategory, `Pick one of ${APP_NAME}'s categories.`).nullable(),
+            amount: z.number().int().positive().max(100_000_000),
+            neverCut: z.boolean(),
+          })
+          .strict()
+          .refine((line) => line.category !== null || line.name.length > 0, "Give your own line a name, like Perfume."),
+      )
+      .max(MAX_BUDGET_LINES, `Up to ${MAX_BUDGET_LINES} lines.`),
+  })
+  .strict();
+export type BudgetSave = z.input<typeof budgetSave>;
+
+/** Changing a regular payment: stop it, start it again, or turn its reminder off. */
+export const regularChange = z
+  .object({
+    stopped: z.boolean(),
+    remind: z.boolean(),
+  })
+  .partial()
+  .strict();
+
 export const deleteAccount = z.object({ code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code from the email.") }).strict();
 
 /* ------------------------------------------------------------------ */
@@ -179,6 +256,94 @@ export type Summary = {
   lastPaySpent: number;
   lastPaySameDay: number;
   projected: number | null;
+  /** True when the person confirmed this pay's take-home; false when it is the usual one, or unknown. */
+  takeHomeConfirmed: boolean;
+  safe: SafeToSpend | null;
+};
+
+export type PaymentList = {
+  payments: Payment[];
+  /** Totals for everything found, even past the limit: spending, and money moved kept apart. */
+  totals: { spent: number; moved: number; count: number; movedCount: number };
+  /** True when more were found than the list shows. */
+  more: boolean;
+};
+
+export type BatchAnswer = {
+  saved: number;
+  /** Rows that look already saved, with the saved payment, to ask about. */
+  clashes: { index: number; saved: Payment }[];
+  /** How many rows took a name or category from one of the person's own fixes. */
+  fixed: number;
+};
+
+export type BillToCome = { key: string; name: string; due: string; amount: number };
+
+export type PayInfo = {
+  period: PaySpan;
+  /** The take-home this pay: confirmed, or the usual one. */
+  takeHome: number | null;
+  confirmed: boolean;
+  usual: number | null;
+};
+
+export type SafeToSpend = {
+  /** Take-home, less spent so far, less bills still to come before payday. Below zero means over. */
+  safe: number;
+  perDay: number;
+  daysLeft: number;
+  bills: BillToCome[];
+};
+
+export type RegularItem = {
+  key: string;
+  name: string;
+  amount: number;
+  /** once, weekly, monthly, quarterly or yearly. */
+  freq: string;
+  lastPaid: string | null;
+  nextDue: string | null;
+  daysLeft: number | null;
+  monthly: number;
+  category: CategoryId;
+  stopped: boolean;
+  lapsed: boolean;
+  paidAfterStop: boolean;
+  remind: boolean;
+  subscription: boolean;
+  /** The latest payment went up: from, to, and when. */
+  rise: { from: number; to: number; on: string } | null;
+};
+
+export type BudgetLineAnswer = {
+  id: string;
+  name: string;
+  category: CategoryId | null;
+  amount: number;
+  neverCut: boolean;
+  /** Spent (or, for savings, put away) on this line so far this pay. */
+  spent: number;
+};
+
+export type BudgetAnswer = {
+  period: PaySpan;
+  takeHome: number | null;
+  lines: BudgetLineAnswer[];
+  planned: number;
+};
+
+export type BudgetDraft = {
+  takeHome: number | null;
+  lines: { name: string; category: CategoryId | null; amount: number; neverCut: boolean; usual: number; kind: "savings" | "fixed" | "flexible" }[];
+  planned: number;
+  spare: number;
+  savings: number;
+  usualSavings: number;
+  fixed: number;
+  trimmed: { name: string; from: number; to: number }[];
+  savingsCut: boolean;
+  tight: boolean;
+  fixedOver: boolean;
 };
 
 /** Every refusal carries a plain message; a server error also carries an id to quote. */

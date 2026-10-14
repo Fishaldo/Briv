@@ -1,60 +1,85 @@
 import { Hono } from "hono";
 import {
-  CATEGORIES,
+  addDays,
   countsAsSpending,
   isPaymentToPerson,
-  paySpan,
-  projectedSpend,
+  isSearchPeriod,
+  matchesSearch,
   samePayment,
-  spanProgress,
-  summarizeSpan,
+  searchTotals,
+  searchWords,
+  SEARCH_PERIODS,
+  todayISO,
   validDate,
   type CategoryId,
-  type Payday,
-  type PaySpan,
 } from "@briv/core";
-import { newPayment, type Summary } from "@briv/contract";
+import { newPayment, paymentBatch, paymentChange, type BatchAnswer, type PaymentList } from "@briv/contract";
 import { z } from "zod";
+import type { NewPaymentRow } from "../data/payments.ts";
+import { statementKeyOf } from "../data/payments.ts";
 import type { Person } from "../data/person.ts";
 import { bad, parse, type Vars } from "../http.ts";
 import type { RouteDeps } from "./deps.ts";
 
-function paydayOf(profile: { paydayRule: string; paydayDay: number | null }): Payday {
-  if (profile.paydayRule === "day_of_month" && profile.paydayDay) return { rule: "day_of_month", day: profile.paydayDay };
-  if (profile.paydayRule === "last_working_day") return { rule: "last_working_day" };
-  if (profile.paydayRule === "last_friday") return { rule: "last_friday" };
-  return null;
-}
+/** The most payments one list returns. */
+const LIST_LIMIT = 500;
+/** The most payments one search reads. Two years of daily spending is well under this. */
+const SCAN_LIMIT = 5000;
 
-/** The first `day` days of a pay period. */
-function sameDayOf(span: PaySpan, day: number): PaySpan {
-  const [y, m, d] = span.start.split("-").map(Number);
-  const end = new Date(Date.UTC(y, m - 1, d + Math.max(day, 1) - 1)).toISOString().slice(0, 10);
-  return { ...span, end: end < span.end ? end : span.end };
-}
-
-/** Spends: list, add, remove, and Home's summary of this pay. */
+/** Spends: list and search, add one, add many from a statement, change, remove. */
 export function paymentRoutes(deps: RouteDeps, person: (personId: string) => Person) {
   const { today } = deps;
   const routes = new Hono<{ Variables: Vars }>();
 
+  /**
+   * The person's spends, newest first. `q` searches the shop, kind, category
+   * and note; `period` (1w … all) or `from`/`to` limit the days; `category`
+   * one category. Totals cover exactly what is listed.
+   */
   routes.get("/payments", async (c) => {
-    const from = c.req.query("from");
+    const period = c.req.query("period");
+    if (period && !isSearchPeriod(period)) bad("Pick a period: 1w, 1m, 3m, 6m, 1y or all.");
+    const days = SEARCH_PERIODS.find((p) => p.id === period)?.days ?? 0;
+    const from = c.req.query("from") ?? (days > 0 ? addDays(todayISO(today()), -(days - 1)) : undefined);
     const to = c.req.query("to");
     if (from && !validDate(from)) bad("Use a real start date.");
     if (to && !validDate(to)) bad("Use a real end date.");
-    const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 500) || 500, 1), 500);
-    return c.json({ payments: await person(c.var.personId).payments.list({ from, to, limit }) });
+    const category = c.req.query("category");
+    const words = searchWords(c.req.query("q") ?? "");
+    const limit = Math.min(Math.max(Number(c.req.query("limit") ?? LIST_LIMIT) || LIST_LIMIT, 1), LIST_LIMIT);
+    // Every payment in the range is read, then searched here: the note is sealed, so the database cannot search it.
+    // Totals cover everything found, so "all time" adds up all time even when the list is cut.
+    const listed = await person(c.var.personId).payments.list({ from, to, limit: SCAN_LIMIT });
+    const found = listed.filter((p) => (!category || p.category === category) && matchesSearch(p, words));
+    const shown = found.slice(0, limit);
+    const answer: PaymentList = { payments: shown, totals: searchTotals(found), more: found.length > limit };
+    return c.json(answer);
+  });
+
+  routes.get("/payments/:id", async (c) => {
+    const id = parse(z.string().uuid(), c.req.param("id"));
+    const payment = await person(c.var.personId).payments.get(id);
+    if (!payment) bad("That spend was not found.", 404);
+    return c.json({ payment });
   });
 
   routes.post("/payments", async (c) => {
     const body = parse(newPayment, await c.req.json().catch(() => ({})));
     const mine = person(c.var.personId);
-    const category = body.category as CategoryId;
+    let category = body.category as CategoryId;
     // A person's name is never kept, whatever the app said: "SOMTOCHUKWU NKEMEL" filed as a
     // gift, a landlord paid rent, a childminder. Moonpig and LemFi keep their names.
     const toPerson = isPaymentToPerson({ merchant: body.shopName ?? "", description: body.statement, category, toPerson: body.toPerson });
-    const shopName = toPerson ? null : (body.shopName ?? null);
+    let shopName = toPerson ? null : (body.shopName ?? null);
+
+    // The person's own fix for this statement text: "BLD*MYPERFECTCV.CO" is MyPerfectCV, in Subscriptions.
+    if (!toPerson && body.statement) {
+      const fix = (await mine.fixes.forKeys([statementKeyOf(body.statement, shopName)])).values().next().value;
+      if (fix) {
+        shopName = fix.shopName;
+        category = fix.category;
+      }
+    }
 
     // Same amount, same shop, same date: ask before saving twice.
     const sameDay = await mine.payments.sameDay(body.amount, body.spentOn);
@@ -86,40 +111,109 @@ export function paymentRoutes(deps: RouteDeps, person: (personId: string) => Per
     return c.json({ payment }, 201);
   });
 
+  /**
+   * Many payments at once, from a bank statement or a screenshot the person
+   * checked. Rows that look already saved come back as clashes, unless the
+   * person said keep both; everything else is saved in one step.
+   */
+  routes.post("/payments/batch", async (c) => {
+    const body = parse(paymentBatch, await c.req.json().catch(() => ({})));
+    const mine = person(c.var.personId);
+    const fixes = await mine.fixes.forKeys(body.rows.map((row) => statementKeyOf(row.statement ?? null, row.shopName)));
+    const saved = await mine.payments.onDays(body.rows.map((row) => row.spentOn));
+    const clashes: BatchAnswer["clashes"] = [];
+    const toSave: NewPaymentRow[] = [];
+    let fixed = 0;
+
+    body.rows.forEach((row, index) => {
+      let category = row.category as CategoryId;
+      const toPerson = isPaymentToPerson({ merchant: row.shopName ?? "", description: row.statement, category });
+      let shopName = toPerson ? null : row.shopName;
+      const fix = toPerson ? undefined : fixes.get(statementKeyOf(row.statement ?? null, row.shopName));
+      if (fix) {
+        shopName = fix.shopName;
+        category = fix.category;
+        fixed += 1;
+      }
+      const match = saved.find(
+        (old) =>
+          old.payment.spentOn === row.spentOn &&
+          samePayment(
+            { merchant: old.shopName ?? "", amountPence: old.payment.amount, spentOn: old.payment.spentOn },
+            { merchant: shopName ?? "", amountPence: row.amount, spentOn: row.spentOn },
+          ),
+      );
+      if (match && !row.keepBoth) {
+        clashes.push({ index, saved: match.payment });
+        return;
+      }
+      toSave.push({
+        amount: row.amount,
+        spentOn: row.spentOn,
+        shopName,
+        category,
+        kind: null,
+        note: null,
+        source: body.source,
+        hasReceipt: body.source === "receipt",
+        toPerson,
+        countsAsSpending: countsAsSpending(category),
+        statement: toPerson ? null : row.statement || null,
+      });
+    });
+
+    const answer: BatchAnswer = { saved: await mine.payments.addMany(toSave), clashes, fixed };
+    return c.json(answer, 201);
+  });
+
+  /**
+   * Changes a saved spend. With `applyToSame`, every other payment with the
+   * same statement text takes the new name and category, and so do future
+   * ones. Changes to a payment to a person never spread: its text is gone.
+   */
+  routes.patch("/payments/:id", async (c) => {
+    const id = parse(z.string().uuid(), c.req.param("id"));
+    const body = parse(paymentChange, await c.req.json().catch(() => ({})));
+    const mine = person(c.var.personId);
+    const before = await mine.payments.get(id);
+    if (!before) bad("That spend was not found.", 404);
+
+    const category = (body.category ?? before.category) as CategoryId;
+    const shopName = body.shopName !== undefined ? body.shopName : before.shopName;
+    const toPerson =
+      body.toPerson === false ? false : isPaymentToPerson({ merchant: shopName ?? "", category, toPerson: body.toPerson ?? before.toPerson });
+    const key = toPerson ? "" : await mine.payments.keyOf(id);
+
+    const payment = await mine.payments.update(id, {
+      amount: body.amount,
+      spentOn: body.spentOn,
+      shopName: toPerson ? null : shopName,
+      category: body.category as CategoryId | undefined,
+      kind: body.kind,
+      note: body.note,
+      toPerson,
+      countsAsSpending: countsAsSpending(category),
+      dropStatement: toPerson && !before.toPerson,
+    });
+
+    let alsoChanged = 0;
+    const renamed = body.shopName !== undefined && body.shopName !== before.shopName;
+    const refiled = body.category !== undefined && body.category !== before.category;
+    if (body.applyToSame && !toPerson && key && (renamed || refiled) && shopName) {
+      const others = await mine.payments.withKey(key, id);
+      alsoChanged = await mine.payments.setMany(others, {
+        ...(renamed ? { shopName } : {}),
+        ...(refiled ? { category, countsAsSpending: countsAsSpending(category) } : {}),
+      });
+      await mine.fixes.save(key, shopName, category);
+    }
+    return c.json({ payment, alsoChanged });
+  });
+
   routes.delete("/payments/:id", async (c) => {
     const id = parse(z.string().uuid(), c.req.param("id"));
     if (!(await person(c.var.personId).payments.remove(id))) bad("That spend was not found.", 404);
     return c.json({ ok: true });
-  });
-
-  /** Home: spent so far this pay, and the pace against the last pay period on the same day. */
-  routes.get("/summary", async (c) => {
-    const mine = person(c.var.personId);
-    const profile = await mine.profile();
-    const now = today();
-    const payday = paydayOf(profile);
-    const current = paySpan(now, payday);
-    const previous = paySpan(now, payday, -1);
-    const txs = await mine.payments.between(previous.start, current.end);
-    const progress = spanProgress(current, now);
-    const thisPay = summarizeSpan(txs, current);
-    const lastPay = summarizeSpan(txs, previous);
-    const lastPaySoFar = summarizeSpan(txs, sameDayOf(previous, progress.day));
-    const summary: Summary & { categories: typeof CATEGORIES } = {
-      period: { ...current, day: progress.day, days: progress.days },
-      previousPeriod: previous,
-      takeHome: profile.usualTakeHome,
-      spent: thisPay.spent,
-      moved: thisPay.moved,
-      count: thisPay.count,
-      byCategory: thisPay.byCategory,
-      lastPayByCategory: lastPay.byCategory,
-      lastPaySpent: lastPay.spent,
-      lastPaySameDay: lastPaySoFar.spent,
-      projected: projectedSpend(thisPay.spent, progress.day, progress.days),
-      categories: CATEGORIES,
-    };
-    return c.json(summary);
   });
 
   return routes;

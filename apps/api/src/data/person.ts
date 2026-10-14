@@ -1,8 +1,10 @@
-import { and, asc, desc, eq, gte, lte } from "drizzle-orm";
-import { isCategory, type CategoryId, type Tx } from "@briv/core";
-import type { Me, Payment, PaydayRuleName } from "@briv/contract";
-import { consents, payments, places, profiles, settings, type Database } from "@briv/db";
-import { seal, unseal, type SealKeys } from "../seal.ts";
+import { and, asc, eq } from "drizzle-orm";
+import type { Me, PaydayRuleName } from "@briv/contract";
+import { consents, places, profiles, settings, type Database } from "@briv/db";
+import type { SealKeys } from "../seal.ts";
+import { budgetFor, incomeFor, regularsFor } from "./money-plan.ts";
+import { fixesFor, paymentsFor } from "./payments.ts";
+import { sealerFor } from "./sealer.ts";
 
 /*
  * Everything about one person, and only that person. Routes get one of these
@@ -11,22 +13,9 @@ import { seal, unseal, type SealKeys } from "../seal.ts";
  * already does.
  */
 
-type PaymentRow = typeof payments.$inferSelect;
 type ConsentKind = (typeof consents.$inferInsert)["kind"];
 
-export type NewPaymentRow = {
-  amount: number;
-  spentOn: string;
-  shopName: string | null;
-  category: CategoryId;
-  kind: string | null;
-  note: string | null;
-  source: PaymentRow["source"];
-  hasReceipt: boolean;
-  toPerson: boolean;
-  countsAsSpending: boolean;
-  statement: string | null;
-};
+export type { NewPaymentRow } from "./payments.ts";
 
 export type ProfileUpdate = Partial<{
   homeTown: string | null;
@@ -40,52 +29,7 @@ export type ProfileUpdate = Partial<{
 }>;
 
 export function forPerson(db: Database, keys: SealKeys, personId: string) {
-  // Sealed text is bound to this person and to the field it belongs in.
-  const sealed = (field: string, text: string | null) => (text ? seal(text, keys, `${personId}:${field}`) : null);
-  const opened = (field: string, text: string | null) => {
-    if (!text) return null;
-    try {
-      return unseal(text, keys, `${personId}:${field}`);
-    } catch {
-      return null;
-    }
-  };
-  const mine = eq(payments.personId, personId);
-
-  function publicPayment(row: PaymentRow): Payment {
-    return {
-      id: row.id,
-      amount: row.amount,
-      currency: row.currency,
-      spentOn: row.spentOn,
-      shopName: row.shopName,
-      category: (isCategory(row.category) ? row.category : "other") as CategoryId,
-      kind: row.kind,
-      source: row.source,
-      countsAsSpending: row.countsAsSpending,
-      toPerson: row.toPerson,
-      hasReceipt: row.hasReceipt,
-      note: opened("payment.note", row.note),
-    };
-  }
-
-  function asTx(row: PaymentRow): Tx {
-    return {
-      id: row.id,
-      merchant: row.shopName ?? "",
-      description: row.shopName ?? "",
-      amountPence: row.amount,
-      category: (isCategory(row.category) ? row.category : "other") as CategoryId,
-      spentOn: row.spentOn,
-      source: "manual",
-      hasReceipt: row.hasReceipt,
-      note: "",
-      items: [],
-      rawAlert: "",
-      isSample: false,
-      createdAt: row.createdAt.toISOString(),
-    };
-  }
+  const sealer = sealerFor(keys, personId);
 
   return {
     personId,
@@ -151,64 +95,11 @@ export function forPerson(db: Database, keys: SealKeys, personId: string) {
       await db.delete(places).where(and(eq(places.id, id), eq(places.personId, personId)));
     },
 
-    payments: {
-      async list(range: { from?: string; to?: string; limit: number }): Promise<Payment[]> {
-        const rows = await db
-          .select()
-          .from(payments)
-          .where(and(mine, range.from ? gte(payments.spentOn, range.from) : undefined, range.to ? lte(payments.spentOn, range.to) : undefined))
-          .orderBy(desc(payments.spentOn), desc(payments.createdAt))
-          .limit(range.limit);
-        return rows.map(publicPayment);
-      },
-
-      /** Saved payments with this amount on this day, to ask before saving one twice. */
-      async sameDay(amount: number, spentOn: string): Promise<{ payment: Payment; shopName: string | null }[]> {
-        const rows = await db.select().from(payments).where(and(mine, eq(payments.amount, amount), eq(payments.spentOn, spentOn)));
-        return rows.map((row) => ({ payment: publicPayment(row), shopName: row.shopName }));
-      },
-
-      /** Saves a payment; with `replaceId`, the saved one goes in the same step, so a failure keeps it. */
-      async add(row: NewPaymentRow, replaceId?: string): Promise<Payment> {
-        return db.transaction(async (tx) => {
-          if (replaceId) await tx.delete(payments).where(and(eq(payments.id, replaceId), mine));
-          const [saved] = await tx
-            .insert(payments)
-            .values({
-              personId,
-              amount: row.amount,
-              spentOn: row.spentOn,
-              shopName: row.shopName,
-              category: row.category,
-              kind: row.kind,
-              note: sealed("payment.note", row.note),
-              source: row.source,
-              hasReceipt: row.hasReceipt,
-              toPerson: row.toPerson,
-              countsAsSpending: row.countsAsSpending,
-              statementSealed: sealed("payment.statement", row.statement),
-            })
-            .returning();
-          return publicPayment(saved);
-        });
-      },
-
-      async remove(id: string): Promise<boolean> {
-        const gone = await db.delete(payments).where(and(eq(payments.id, id), mine)).returning({ id: payments.id });
-        return gone.length > 0;
-      },
-
-      async between(start: string, end: string): Promise<Tx[]> {
-        const rows = await db.select().from(payments).where(and(mine, gte(payments.spentOn, start), lte(payments.spentOn, end)));
-        return rows.map(asTx);
-      },
-
-      /** The sealed statement line, opened. For the person's own export and for tests. */
-      async statementOf(id: string): Promise<string | null> {
-        const [row] = await db.select({ text: payments.statementSealed }).from(payments).where(and(eq(payments.id, id), mine));
-        return opened("payment.statement", row?.text ?? null);
-      },
-    },
+    payments: paymentsFor(db, personId, sealer),
+    fixes: fixesFor(db, personId),
+    income: incomeFor(db, personId),
+    budget: budgetFor(db, personId),
+    regulars: regularsFor(db, personId),
   };
 }
 

@@ -15,6 +15,13 @@
       "when": 1791980599832,
       "tag": "0001_limits_and_reminder_steps",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791991556955,
+      "tag": "0002_regular_payment_keys",
+      "breakpoints": true
     }
   ]
 }
