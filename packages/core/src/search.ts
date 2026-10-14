@@ -22,6 +22,10 @@ function fold(text: string): string {
     .replace(/[’‘`´]/g, "'");
 }
 
+function squash(text: string): string {
+  return text.replace(/[^a-z0-9£]+/g, "");
+}
+
 /** The words of a search, cleaned. Empty means "everything". */
 export function searchWords(query: string): string[] {
   return fold(query)
@@ -33,10 +37,11 @@ export function searchWords(query: string): string[] {
 
 export function matchesSearch(payment: Searchable, words: string[]): boolean {
   if (words.length === 0) return true;
-  const hay = fold(
-    [payment.shopName ?? "", payment.kind ?? "", categoryLabel(payment.category), payment.note ?? "", ...(payment.items ?? [])].join(" "),
-  );
-  return words.every((word) => hay.includes(word));
+  const fields = [payment.shopName ?? "", payment.kind ?? "", categoryLabel(payment.category), payment.note ?? "", ...(payment.items ?? [])].map(fold);
+  const hay = fields.join(" ");
+  // "myperfectcv" still finds "My Perfect CV", and "pay pal" finds "PayPal": spaces and dots are ignored for longer words.
+  const flat = fields.map(squash).join("|");
+  return words.every((word) => hay.includes(word) || (word.length >= 4 && flat.includes(squash(word))));
 }
 
 export type SearchTotals = { spent: number; moved: number; count: number; movedCount: number };

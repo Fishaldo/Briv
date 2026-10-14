@@ -78,8 +78,23 @@ export function Screen({
   );
 }
 
-export function Card({ children, style, tone = "plain" }: { children: ReactNode; style?: StyleProp<ViewStyle>; tone?: "plain" | "green" | "amber" | "blue" }) {
-  return <View style={[styles.card, toneStyle[tone], style]}>{children}</View>;
+export function Card({
+  children,
+  style,
+  tone = "plain",
+  accessibilityLiveRegion,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  tone?: "plain" | "green" | "amber" | "blue";
+  /** Read out changes, for a total that updates as the person searches. */
+  accessibilityLiveRegion?: "polite" | "assertive";
+}) {
+  return (
+    <View style={[styles.card, toneStyle[tone], style]} accessibilityLiveRegion={accessibilityLiveRegion}>
+      {children}
+    </View>
+  );
 }
 
 const toneStyle = StyleSheet.create({
@@ -94,10 +109,10 @@ export function List({ children }: { children: ReactNode }) {
   return <View style={styles.list}>{children}</View>;
 }
 
-export function Row({ children, onPress, style }: { children: ReactNode; onPress?: () => void; style?: StyleProp<ViewStyle> }) {
+export function Row({ children, onPress, style, label }: { children: ReactNode; onPress?: () => void; style?: StyleProp<ViewStyle>; label?: string }) {
   if (!onPress) return <View style={[styles.row, style]}>{children}</View>;
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed, style]} accessibilityRole="button">
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed, style]} accessibilityRole="button" accessibilityLabel={label}>
       {children}
     </Pressable>
   );
@@ -172,13 +187,13 @@ export function RoundButton({ label, onPress, children }: { label: string; onPre
   );
 }
 
-export function Chip({ label, on, onPress }: { label: string; on?: boolean; onPress: () => void }) {
+export function Chip({ label, on, onPress, wide }: { label: string; on?: boolean; onPress: () => void; wide?: boolean }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: !!on }}
-      style={({ pressed }) => [styles.chip, on && styles.chipOn, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.chip, wide && styles.chipWide, on && styles.chipOn, pressed && styles.pressed]}
     >
       <Text style={[styles.chipText, on && styles.chipTextOn]} maxFontSizeMultiplier={1.4}>
         {label}
@@ -251,6 +266,7 @@ const styles = StyleSheet.create({
   round: { width: touch, height: touch, borderRadius: touch / 2, backgroundColor: color.card, borderWidth: 1, borderColor: color.line, alignItems: "center", justifyContent: "center" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { minHeight: touch, paddingHorizontal: 14, borderRadius: radius.chip, borderWidth: 1, borderColor: color.lineStrong, backgroundColor: color.card, justifyContent: "center" },
+  chipWide: { flex: 1, alignItems: "center" },
   chipOn: { backgroundColor: color.ink, borderColor: color.ink },
   chipText: { fontFamily: font.bold, fontSize: 14, color: color.ink },
   chipTextOn: { color: color.white },

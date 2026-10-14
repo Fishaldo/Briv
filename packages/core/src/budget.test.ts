@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { fitBudget, lineProgress, planBudget, savingsGoal, suggestBudget, type BudgetLine } from "./budget.ts";
+import { fitBudget, lineProgress, planBudget, savingsGoal, suggestBudget, usualByCategory, type BudgetLine } from "./budget.ts";
 import { paySpan, type CategoryId, type Tx } from "./model.ts";
 
 function tx(merchant: string, amountPence: number, spentOn: string, category: Tx["category"], isSample = false): Tx {
@@ -249,5 +249,26 @@ describe("fitting a budget the person already has", () => {
       200000,
     );
     assert.equal(plan.savingsPence, 60000);
+  });
+});
+
+describe("a bill that started recently", () => {
+  it("counts it at its real amount a pay, not averaged over pays before it began", () => {
+    const today = new Date(2026, 9, 14);
+    const spans = [paySpan(today, 25, -1), paySpan(today, 25, -2), paySpan(today, 25, -3)];
+    const txs = [
+      tx("ASDA", 25000, "2026-07-05", "groceries"),
+      tx("ASDA", 24000, "2026-08-05", "groceries"),
+      tx("ASDA", 26000, "2026-09-05", "groceries"),
+      // Vodafone began in August: two of the three pays.
+      tx("Vodafone", 2000, "2026-08-18", "bills"),
+      tx("Vodafone", 2000, "2026-09-18", "bills"),
+      // A one-off trip in the last pay stays averaged, so it does not take over the plan.
+      tx("Ryanair", 30000, "2026-09-10", "travel"),
+    ];
+    const usual = usualByCategory(txs, spans);
+    assert.equal(usual.spending.get("bills"), 2000);
+    assert.equal(usual.spending.get("groceries"), 25000);
+    assert.equal(usual.spending.get("travel"), 10000);
   });
 });

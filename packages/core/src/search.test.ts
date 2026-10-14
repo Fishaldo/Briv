@@ -23,6 +23,14 @@ describe("searching your spends", () => {
     assert.equal(matchesSearch({ shopName: "Sainsbury's", category: "groceries" }, searchWords("sainsbury’s")), true);
   });
 
+  it("ignores spaces and dots inside a name", () => {
+    const cv = { shopName: "My Perfect CV", category: "subscriptions" as const };
+    assert.equal(matchesSearch(cv, searchWords("myperfectcv")), true);
+    assert.equal(matchesSearch({ shopName: "PayPal", category: "other" }, searchWords("pay pal")), true);
+    assert.equal(matchesSearch({ shopName: "M&S Food", category: "groceries" }, searchWords("m&s")), true);
+    assert.equal(matchesSearch(cv, searchWords("perfectcvs")), false);
+  });
+
   it("matches everything for an empty search", () => {
     assert.deepEqual(searchWords("   "), []);
     assert.equal(matchesSearch(uber, []), true);

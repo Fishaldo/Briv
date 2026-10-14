@@ -1,13 +1,14 @@
 import { router } from "expo-router";
-import { StyleSheet, View } from "react-native";
-import { APP_NAME, nextPayday } from "@briv/core";
+import { useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
+import { APP_NAME, nextPayday, poundsToPence, shortDate } from "@briv/core";
 import { longDate, pounds } from "@/features/money";
 import { PaymentRow } from "@/features/payment-row";
-import type { Payment, Summary } from "@/lib/api";
+import { api, type Payment, type Summary } from "@/lib/api";
 import { useMe } from "@/lib/session";
 import { useLoad } from "@/lib/use-load";
 import { SettingsIcon } from "@/ui/icons";
-import { Button, Card, List, Problem, RoundButton, Screen, T } from "@/ui/kit";
+import { Button, Card, Field, List, Problem, RoundButton, Row, Screen, T } from "@/ui/kit";
 import { color, font, radius } from "@/ui/theme";
 
 export default function Home() {
@@ -35,24 +36,39 @@ export default function Home() {
 
       <Problem>{summary.problem}</Problem>
 
-      {s ? <SpentCard summary={s} hasPayday={me.profile.paydayRule === "day_of_month"} /> : <View style={styles.heroPlaceholder} />}
+      {s ? <SpentCard summary={s} hasPayday={me.profile.paydayRule !== "none"} /> : <View style={styles.heroPlaceholder} />}
+
+      {s && s.safe ? <SafeCard summary={s} /> : null}
+
+      {s && s.takeHome && !s.takeHomeConfirmed && me.profile.paydayRule !== "none" ? (
+        <PayCheck usual={s.takeHome} onDone={() => summary.reload()} />
+      ) : null}
 
       {s ? (
         <View style={styles.tiles}>
           <Tile label="Spending" value={pounds(s.spent)} />
-          <Tile label="Saved, invested" value={pounds(s.moved)} ink={color.blue} />
+          <Tile label="Put away" value={pounds(s.moved)} ink={color.blue} />
           <Tile label="Spends" value={String(s.count)} />
         </View>
       ) : null}
 
       <View style={{ gap: 10 }}>
-        <T kind="heading" accessibilityRole="header">
-          Latest
-        </T>
+        <View style={styles.sectionHead}>
+          <T kind="heading" accessibilityRole="header" style={{ flex: 1 }}>
+            Latest
+          </T>
+          {payments.length > 0 ? (
+            <Pressable onPress={() => router.push("/activity")} accessibilityRole="link" hitSlop={10}>
+              <T kind="label" style={{ color: color.green }}>
+                See all
+              </T>
+            </Pressable>
+          ) : null}
+        </View>
         {payments.length > 0 ? (
           <List>
             {payments.map((p) => (
-              <PaymentRow key={p.id} payment={p} />
+              <PaymentRow key={p.id} payment={p} onPress={() => router.push({ pathname: "/payment/[id]", params: { id: p.id } })} />
             ))}
           </List>
         ) : latest.data ? (
@@ -64,6 +80,89 @@ export default function Home() {
         ) : null}
       </View>
     </Screen>
+  );
+}
+
+/** What is safe to spend until payday, after the bills still to come. */
+function SafeCard({ summary: s }: { summary: Summary }) {
+  const safe = s.safe;
+  if (!safe) return null;
+  const over = safe.safe < 0;
+  const bills = safe.bills.reduce((sum, bill) => sum + bill.amount, 0);
+  return (
+    <List>
+      <Row style={{ flexDirection: "column", alignItems: "stretch", gap: 6 }}>
+        <T kind="small" style={{ fontFamily: font.semibold }}>
+          {over ? "Over your take-home until payday" : "Safe to spend until payday"}
+        </T>
+        <T kind="money" style={{ fontSize: 26, color: over ? color.danger : color.ink }}>
+          {pounds(Math.abs(safe.safe))}
+        </T>
+        <T kind="small">
+          {over
+            ? "Spending and bills to come are more than this pay."
+            : `About ${pounds(safe.perDay)} a day for ${safe.daysLeft} day${safe.daysLeft === 1 ? "" : "s"}.`}
+          {bills > 0 ? ` ${pounds(bills)} of bills still to come is already taken off.` : ""}
+        </T>
+      </Row>
+      {safe.bills.slice(0, 3).map((bill) => (
+        <Row key={`${bill.key}-${bill.due}`}>
+          <T style={{ flex: 1 }} numberOfLines={1}>
+            {bill.name}
+          </T>
+          <T kind="small">{shortDate(bill.due)}</T>
+          <T kind="money">{pounds(bill.amount)}</T>
+        </Row>
+      ))}
+      <Row onPress={() => router.push("/regulars")}>
+        <T kind="label" style={{ color: color.green, flex: 1 }}>
+          Regular payments
+        </T>
+      </Row>
+    </List>
+  );
+}
+
+/** "Did £2,400 come in this pay?" Asked once a pay, so safe to spend uses what really came in. */
+function PayCheck({ usual, onDone }: { usual: number; onDone: () => void }) {
+  const [other, setOther] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  async function confirm(takeHome: number | null) {
+    if (takeHome === null || takeHome < 0) return setProblem("Type the amount in pounds, like 2,350.");
+    setBusy(true);
+    setProblem(null);
+    try {
+      await api("/me/pay", { method: "PUT", body: { takeHome } });
+      onDone();
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : "That did not save. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card tone="green">
+      <T kind="strong">{`Did ${pounds(usual)} come in this pay?`}</T>
+      <T kind="small" style={{ color: color.inkSoft }}>
+        Safe to spend uses what really came in.
+      </T>
+      {other ? (
+        <>
+          <Field label="What came in (£)" value={typed} onChangeText={setTyped} keyboardType="decimal-pad" inputMode="decimal" placeholder="£2,350" />
+          <Button label="Save" busy={busy} onPress={() => confirm(poundsToPence(typed))} />
+        </>
+      ) : (
+        <View style={{ flexDirection: "row", gap: 10 }}>
+          <Button label="Yes" busy={busy} style={{ flex: 1 }} onPress={() => confirm(usual)} />
+          <Button label="A different amount" kind="secondary" style={{ flex: 1.4 }} onPress={() => setOther(true)} />
+        </View>
+      )}
+      <Problem>{problem}</Problem>
+    </Card>
   );
 }
 
@@ -109,7 +208,7 @@ function Tile({ label, value, ink = color.ink }: { label: string; value: string;
       <T kind="small" style={{ fontFamily: font.semibold, fontSize: 12 }} numberOfLines={2}>
         {label}
       </T>
-      <T kind="money" style={{ fontSize: 17, color: ink }} numberOfLines={1} adjustsFontSizeToFit>
+      <T kind="money" style={{ fontSize: value.length > 7 ? 15 : 17, color: ink }}>
         {value}
       </T>
     </View>
@@ -118,6 +217,7 @@ function Tile({ label, value, ink = color.ink }: { label: string; value: string;
 
 const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 12 },
+  sectionHead: { flexDirection: "row", alignItems: "center", gap: 12 },
   heroPlaceholder: { height: 220, borderRadius: radius.hero, backgroundColor: color.greenTint },
   hero: { backgroundColor: color.green, borderRadius: radius.hero, padding: 22, gap: 14 },
   heroLabel: { color: color.greenOnDark, fontFamily: font.semibold, fontSize: 14 },

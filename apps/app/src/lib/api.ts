@@ -67,4 +67,14 @@ export function reportAppError(error: unknown) {
 }
 
 /* The shapes the server sends back, written once in @briv/contract and shared with the server. */
-export type { Me, Payment, Summary } from "@briv/contract";
+export type {
+  BatchAnswer,
+  BudgetAnswer,
+  BudgetDraft,
+  Me,
+  PayInfo,
+  Payment,
+  PaymentList,
+  RegularItem,
+  Summary,
+} from "@briv/contract";
