@@ -25,8 +25,8 @@ async function spend(body: Record<string, unknown>, cookie = ada) {
 
 before(async () => {
   await t.handle.migrate();
-  ada = await t.signIn("ada@example.com");
-  ben = await t.signIn("ben@example.com");
+  ada = await t.signIn("ada@spending.example.com");
+  ben = await t.signIn("ben@spending.example.com");
   const res = await t.call("/me", { method: "PATCH", cookie: ada, body: { name: "Ada", usualTakeHome: 240000, paydayDay: 25, onboarded: true } });
   assert.equal(res.status, 200);
 });
