@@ -250,3 +250,14 @@ describe("contract ends", () => {
     assert.match(message.body, /better one/);
   });
 });
+
+describe("stored timing", () => {
+  it("turns each frequency into the stored form and back", async () => {
+    const { everyOf, freqOf, FREQS } = await import("./regular.ts");
+    for (const freq of FREQS) {
+      const stored = everyOf(freq);
+      assert.equal(freqOf(stored.every, stored.count), freq);
+    }
+    assert.equal(freqOf("week", 4), null);
+  });
+});

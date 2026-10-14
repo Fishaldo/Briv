@@ -29,9 +29,19 @@ export function townFromPostcodes(body: PostcodesResult): string | null {
   return district ?? ward ?? null;
 }
 
+/**
+ * About a kilometre: enough to name the town, too coarse to point at a home.
+ * The exact point never leaves the server.
+ */
+export function roughPoint(lat: number, lng: number): [number, number] {
+  return [Math.round(lat * 100) / 100, Math.round(lng * 100) / 100];
+}
+
 export const postcodesTown: TownResolver = async (lat, lng) => {
-  const url = `https://api.postcodes.io/postcodes?lon=${encodeURIComponent(lng)}&lat=${encodeURIComponent(lat)}&limit=1&radius=2000`;
-  const response = await fetch(url, { headers: { Accept: "application/json" } });
+  const [roughLat, roughLng] = roughPoint(lat, lng);
+  const url = `https://api.postcodes.io/postcodes?lon=${encodeURIComponent(roughLng)}&lat=${encodeURIComponent(roughLat)}&limit=1&radius=2000`;
+  // A slow lookup must not hold the person up: after 5 seconds the town is simply asked for instead.
+  const response = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(5000) });
   if (!response.ok) return null;
   return townFromPostcodes((await response.json()) as PostcodesResult);
 };

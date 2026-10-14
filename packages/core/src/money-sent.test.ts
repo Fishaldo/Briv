@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { isMoneySent, looksLikePerson, payeeKind, sendingService } from "./money-sent.ts";
 import { parseAlert } from "./model.ts";
-import { buildTaste, dayNum, isoOf, shopsToLookUp, type SpendInput } from "./habits.ts";
+import { buildTaste, dayNum, isPaymentToPerson, isoOf, shopsToLookUp, type SpendInput } from "./habits.ts";
 
 describe("money-transfer apps", () => {
   it("knows the apps people use to send money", () => {
@@ -81,11 +81,13 @@ describe("alerts and statement lines", () => {
   it("files money sent to a person", () => {
     assert.equal(parseAlert("You sent £50.00 to Mum").category, "sent");
     assert.equal(parseAlert("Faster payment £120.00 to ADA EZE").category, "sent");
-    assert.equal(parseAlert("SOMTOCHUKWU NKEMEL").category, "sent");
+    assert.equal(parseAlert("FPS SOMTOCHUKWU NKEMEL £132.00").category, "sent");
     assert.equal(parseAlert("LEMFI £132.00").category, "sent");
   });
 
   it("does not mistake a shop for a person", () => {
+    // A bare name could be a shop or a football club: it stays Other, and the person is asked.
+    assert.equal(parseAlert("SOMTOCHUKWU NKEMEL £132.00").category, "other");
     assert.equal(parseAlert("You paid £8.20 at Mama Africa").category, "other");
     assert.equal(parseAlert("£12.66 at Jollof Food Store").category, "other");
     assert.equal(parseAlert("You paid £40.00 at Tesco").category, "groceries");
@@ -141,5 +143,53 @@ describe("offers learn from shopping, not from money sent", () => {
   it("never looks a person up on the web", () => {
     const wanted = shopsToLookUp(spends).map((row) => row.merchant);
     assert.equal(wanted.some((name) => /nkemel|eze/i.test(name)), false);
+  });
+});
+
+describe("never keeping a person's name", () => {
+  it("treats people paid in any category as people", () => {
+    for (const payment of [
+      { merchant: "Chidi", category: "sent" },
+      { merchant: "Jisoo Park", category: "sent" },
+      { merchant: "John Smith", category: "housing", description: "JOHN SMITH RENT" },
+      { merchant: "Sarah Jones", category: "kids" },
+      { merchant: "Ngozi Okafor", category: "gifts", toPerson: false },
+      { merchant: "Ada Eze", category: "dining", description: "FPS ADA EZE" },
+    ]) {
+      assert.equal(isPaymentToPerson(payment), true, JSON.stringify(payment));
+    }
+  });
+
+  it("keeps shop names, including ones that read like names", () => {
+    for (const payment of [
+      { merchant: "Jo Malone London", category: "gifts" },
+      { merchant: "Moonpig", category: "gifts" },
+      { merchant: "LemFi", category: "sent" },
+      { merchant: "Golden Dragon", category: "dining" },
+      { merchant: "Tesco", category: "groceries" },
+    ]) {
+      assert.equal(isPaymentToPerson(payment), false, JSON.stringify(payment));
+    }
+  });
+
+  it("never sends a person's name to a web search", () => {
+    const wanted = shopsToLookUp([
+      { merchant: "Sarah Jones", category: "kids" },
+      { merchant: "John Smith", category: "housing" },
+      { merchant: "Golden Dragon", category: "dining" },
+    ]).map((row) => row.merchant);
+    assert.deepEqual(wanted, ["Golden Dragon"]);
+  });
+
+  it("counts rent to a private landlord as rent, with no shop", () => {
+    const taste = buildTaste(
+      [
+        { merchant: "John Smith", amountPence: 90000, spentOn: "2026-09-01", category: "housing", source: "bank" },
+        { merchant: "John Smith", amountPence: 90000, spentOn: "2026-08-01", category: "housing", source: "bank" },
+      ],
+      { today: "2026-10-10", payday: null },
+    );
+    assert.equal(taste.shops.length, 0);
+    assert.deepEqual(taste.interests.find((row) => row.id === "housing")?.shops, []);
   });
 });

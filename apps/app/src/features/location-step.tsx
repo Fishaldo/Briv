@@ -45,13 +45,14 @@ export function LocationStep({
         setProblem(`Location is off for ${APP_NAME}. Type your town instead.`);
         return;
       }
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      // Record what the person actually gave: a browser has no precise switch, so judge it by how close the fix is.
       const precise =
         Platform.OS === "ios"
           ? permission.ios?.accuracy === "full"
           : Platform.OS === "android"
             ? permission.android?.accuracy === "fine"
-            : true;
-      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            : (position.coords.accuracy ?? Infinity) <= 100;
       const result = await save({
         allowed: true,
         precise,

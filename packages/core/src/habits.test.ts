@@ -77,9 +77,10 @@ describe("matching shops and items", () => {
 describe("paydays", () => {
   it("finds the payday before and after a day", () => {
     assert.equal(isoOf(paydayOnOrBefore(dayNum("2026-10-10"), 25)), "2026-09-25");
-    assert.equal(isoOf(paydayOnOrBefore(dayNum("2026-10-25"), 25)), "2026-10-25");
+    // 25 October 2026 is a Sunday: pay comes on Friday the 23rd.
+    assert.equal(isoOf(paydayOnOrBefore(dayNum("2026-10-25"), 25)), "2026-10-23");
     assert.equal(isoOf(paydayAfter(dayNum("2026-10-25"), 25)), "2026-11-25");
-    assert.equal(isoOf(paydayAfter(dayNum("2026-02-10"), 31)), "2026-02-28");
+    assert.equal(isoOf(paydayAfter(dayNum("2026-02-10"), 31)), "2026-02-27");
   });
 });
 
@@ -112,7 +113,7 @@ describe("rhythm", () => {
     const occs = ["2026-07-25", "2026-08-26", "2026-09-25"].map((iso) => ({ day: dayNum(iso), pence: 3000, minutes: null }));
     const r = rhythmOf(occs, dayNum(TODAY), 25);
     assert.equal(r.afterPayday, true);
-    assert.equal(r.nextOn, "2026-10-25");
+    assert.equal(r.nextOn, "2026-10-23");
     assert.equal(r.due, "later");
   });
 

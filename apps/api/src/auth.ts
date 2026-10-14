@@ -3,28 +3,25 @@ import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { emailOTP } from "better-auth/plugins";
 import { expo } from "@better-auth/expo";
-import { passkey } from "@better-auth/passkey";
-import { eq } from "drizzle-orm";
 import { APP_NAME } from "@briv/core";
-import {
-  authAccounts,
-  authPasskeys,
-  authSessions,
-  authUsers,
-  authVerifications,
-  profiles,
-  settings,
-  type Database,
-} from "@briv/db";
+import { authAccounts, authRateLimits, authSessions, authUsers, authVerifications, profiles, settings, type Database } from "@briv/db";
 import type { Env } from "./env.ts";
 import { signInCodeMessage, type Mailer } from "./mail.ts";
 
 /*
- * Sign-in: an emailed code, passkeys, Apple and Google. No passwords.
- * Apple and Google switch on only when their keys are set.
+ * Sign-in: an emailed code, Apple and Google. No passwords. Apple and Google
+ * switch on only when their keys are set. Passkeys come when the app offers
+ * them; until then the server does not accept them.
  *
  * When an account is made it gets a random person number, and an empty profile
  * with that number. Money is only ever filed against the person number.
+ *
+ * Limits, counted in the database so they hold across servers, by the
+ * visitor's own address from the host's header (CLIENT_IP_HEADER):
+ * - asking for a code: 3 a minute from one address, and 5 an hour for one
+ *   email (that one is in app.ts, as Better Auth counts by address only);
+ * - entering a code: 5 a minute; each code takes 3 wrong tries, then a new one is needed.
+ * Codes are stored hashed and last 5 minutes.
  */
 export function createAuth(db: Database, env: Env, mail: Mailer) {
   const socialProviders: BetterAuthOptions["socialProviders"] = {};
@@ -40,12 +37,13 @@ export function createAuth(db: Database, env: Env, mail: Mailer) {
   }
 
   const trustedOrigins = [...env.origins, `${env.APP_SCHEME}://`];
-  if (env.NODE_ENV !== "production") trustedOrigins.push("exp://");
+  // Expo Go's own scheme, only while building on a laptop.
+  if (!env.live) trustedOrigins.push("exp://");
   if (env.APPLE_CLIENT_ID) trustedOrigins.push("https://appleid.apple.com");
 
   return betterAuth({
     appName: APP_NAME,
-    baseURL: env.BETTER_AUTH_URL,
+    baseURL: env.authUrl,
     secret: env.secret,
     trustedOrigins,
     telemetry: { enabled: false },
@@ -56,24 +54,29 @@ export function createAuth(db: Database, env: Env, mail: Mailer) {
         session: authSessions,
         account: authAccounts,
         verification: authVerifications,
-        passkey: authPasskeys,
+        rateLimit: authRateLimits,
       },
     }),
+    rateLimit: {
+      enabled: true,
+      storage: "database",
+      window: 60,
+      max: 100,
+      customRules: {
+        "/email-otp/send-verification-otp": { window: 60, max: 3 },
+        "/sign-in/email-otp": { window: 60, max: 5 },
+      },
+    },
+    advanced: {
+      ipAddress: env.CLIENT_IP_HEADER ? { ipAddressHeaders: [env.CLIENT_IP_HEADER.toLowerCase()] } : undefined,
+      useSecureCookies: env.live,
+    },
     user: {
       additionalFields: {
         personId: { type: "string", required: false, input: false, returned: false },
       },
-      deleteUser: {
-        enabled: true,
-        // Removing the profile removes every payment, place, consent and setting with it.
-        beforeDelete: async (user) => {
-          const [row] = await db
-            .select({ personId: authUsers.personId })
-            .from(authUsers)
-            .where(eq(authUsers.id, user.id));
-          if (row?.personId) await db.delete(profiles).where(eq(profiles.id, row.personId));
-        },
-      },
+      // Deleting goes through Briv's own route, which asks for an emailed code (routes/me.ts).
+      deleteUser: { enabled: false },
     },
     session: {
       expiresIn: 60 * 60 * 24 * 60,
@@ -81,6 +84,8 @@ export function createAuth(db: Database, env: Env, mail: Mailer) {
     },
     account: {
       accountLinking: { enabled: true, trustedProviders: ["google", "apple", "email-otp"] },
+      // Briv never uses Apple's or Google's tokens; while they are kept, they are kept encrypted.
+      encryptOAuthTokens: true,
     },
     socialProviders,
     databaseHooks: {
@@ -100,14 +105,11 @@ export function createAuth(db: Database, env: Env, mail: Mailer) {
       emailOTP({
         otpLength: 6,
         expiresIn: 300,
+        allowedAttempts: 3,
+        storeOTP: "hashed",
         sendVerificationOTP: async ({ email, otp }) => {
           await mail({ to: email, ...signInCodeMessage(otp) });
         },
-      }),
-      passkey({
-        rpID: env.PASSKEY_RP_ID,
-        rpName: APP_NAME,
-        origin: env.origins,
       }),
     ],
   });

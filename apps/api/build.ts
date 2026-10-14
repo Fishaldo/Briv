@@ -8,8 +8,8 @@ import { build } from "esbuild";
 rmSync("dist", { recursive: true, force: true });
 
 await build({
-  entryPoints: ["src/server.ts"],
-  outfile: "dist/server.js",
+  entryPoints: { server: "src/server.ts", jobs: "src/jobs.ts" },
+  outdir: "dist",
   bundle: true,
   platform: "node",
   target: "node22",

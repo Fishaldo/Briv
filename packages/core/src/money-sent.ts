@@ -93,17 +93,19 @@ const BUSINESS = new Set(
     "opticians optician vets vet veterinary services service group holdings trading traders trade enterprises enterprise international " +
     "global solutions systems energy water gas electric electricity council borough county city town bank building society insurance " +
     "assurance finance financial capital credit loans loan gym fitness studio studios centre center club school schools college university " +
-    "academy nursery church ministries ministry mosque temple chapel halal continental african africa asian asia oriental caribbean polish " +
-    "turkish indian chinese thai italian wholesale cash carry direct online digital payments pay wallet card cards the and of house homes home " +
+    "academy nursery ministries ministry mosque halal continental african africa asian asia oriental caribbean polish " +
+    "turkish indian chinese thai italian wholesale cash carry direct online digital payments pay wallet card cards the and of homes home " +
     "hair beauty nails cosmetics salon salons barbers barber spa fashion fashions clothing clothes boutique wear shoes textiles " +
-    "petrol fuel filling station parking park taxi taxis cabs cars car motors garage autos auto wash repairs repair tyres lettings letting " +
-    "estates estate properties property housing association rentals rent landlord hotel hotels travel travels tours airways airlines air " +
-    "rail railway trains buses bus coaches transport logistics couriers delivery post office mail parcel parcels amazon ebay paypal google " +
+    "petrol fuel filling station parking taxi taxis cabs cars car motors garage autos auto wash repairs repair tyres lettings letting " +
+    "estates estate properties property housing association rentals landlord hotels hotel travel travels tours airways airlines air " +
+    "rail railway trains buses bus coaches transport logistics couriers delivery office parcel parcels amazon ebay paypal google " +
     "apple microsoft netflix spotify tesco asda aldi lidl sainsbury morrisons waitrose iceland primark boots argos currys greggs " +
     "mcdonalds kfc subway nandos costa starbucks uber bolt deliveroo just eat trainline ticket tickets cinema theatre games gaming " +
     "media tv mobile telecom broadband fibre phone phones network networks electronics computers tech technology software apps app " +
     "brothers bros sons daughters partners associates company companies corp corporation agency " +
-    "lounge palace royal kingdom world depot outlet warehouse factory works workshop supplies supply hire"
+    "lounge palace royal kingdom world depot outlet warehouse factory works workshop supplies supply hire " +
+    // Places in a shop's name: "Jo Malone London", "Leeds Kebab House".
+    "london manchester birmingham leeds liverpool bristol newcastle sheffield glasgow edinburgh cardiff belfast nottingham leicester"
   ).split(/\s+/),
 );
 

@@ -33,6 +33,21 @@ export default tseslint.config(
     },
   },
   {
+    // Routes never touch tables: private data goes through apps/api/src/data, which is always scoped to one person.
+    files: ["apps/api/src/routes/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            { name: "@briv/db", message: "Use apps/api/src/data: it is always scoped to one person.", allowTypeImports: true },
+            { name: "drizzle-orm", message: "Use apps/api/src/data: it is always scoped to one person.", allowTypeImports: true },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ["apps/app/**/*.{ts,tsx}"],
     plugins: { "react-hooks": reactHooks },
     languageOptions: { globals: { ...globals.browser } },

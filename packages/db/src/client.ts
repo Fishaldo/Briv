@@ -47,7 +47,10 @@ export function createDb(url: string, options: { migrationsFolder?: string } = {
       close: () => client.close(),
     };
   }
-  const client = postgres(url, { max: 5, prepare: false });
+  // prepare: false for Neon's pooled connections. A database that cannot be reached fails in
+  // 10 seconds rather than hanging a request; idle connections close after 20.
+  // A slow query is stopped by the database itself: see "Running live" in README.md.
+  const client = postgres(url, { max: 5, prepare: false, connect_timeout: 10, idle_timeout: 20 });
   const db = drizzlePg({ client, schema });
   return {
     db: db as unknown as Database,
