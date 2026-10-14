@@ -1,36 +1,21 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
-import { APP_NAME, CATEGORIES, poundsToPence, todayISO, validDate, type CategoryId } from "@briv/core";
+import { APP_NAME, CATEGORIES, parseAlert, poundsToPence, type CategoryId } from "@briv/core";
+import { readDay, shiftDay } from "@/features/days";
 import { pounds } from "@/features/money";
 import { api, ApiError, type Payment } from "@/lib/api";
 import { CloseIcon } from "@/ui/icons";
-import { Button, Card, Chip, Chips, Field, Problem, RoundButton, Screen, T } from "@/ui/kit";
+import { Button, Card, Chip, Chips, Field, List, Problem, RoundButton, Row, Screen, T } from "@/ui/kit";
 import { color, font, radius } from "@/ui/theme";
 
 const SOON = [
   { title: "Scan a receipt", line: "Shop, items and total" },
   { title: "Photos, screenshots or PDF", line: "Receipts or bank screenshots, up to 8" },
-  { title: "Paste a payment message", line: "Google Pay, Apple Pay, a bank or Uber" },
   { title: "Say it", line: "“About £20 at ASDA, groceries”" },
   { title: "Connect your email", line: "Receipts read if you allow it" },
   { title: "Connect a bank or card", line: "Payments arrive by themselves" },
 ];
-
-function shiftDay(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return todayISO(d);
-}
-
-/** 13/10/2026 or 13/10 becomes 2026-10-13. */
-function readDay(text: string): string | null {
-  const m = text.trim().match(/^(\d{1,2})[/.\-\s](\d{1,2})(?:[/.\-\s](\d{2,4}))?$/);
-  if (!m) return null;
-  const year = m[3] ? (m[3].length === 2 ? `20${m[3]}` : m[3]) : String(new Date().getFullYear());
-  const iso = `${year}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
-  return validDate(iso) ? iso : null;
-}
 
 type Saved = Pick<Payment, "id" | "amount" | "shopName" | "spentOn">;
 
@@ -44,6 +29,22 @@ export default function Add() {
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [duplicate, setDuplicate] = useState<Saved | null>(null);
+  const [message, setMessage] = useState("");
+  const [fromMessage, setFromMessage] = useState(false);
+  const [messageNote, setMessageNote] = useState<string | null>(null);
+
+  /** Reads a pasted payment message into the form, for the person to check before saving. */
+  function readMessage() {
+    const text = message.trim();
+    if (!text) return setMessageNote("Paste the message first.");
+    const read = parseAlert(text);
+    if (!read.amountPence) return setMessageNote("No amount found in that message. Type the spend below instead.");
+    setAmount((read.amountPence / 100).toFixed(2));
+    if (read.merchant && read.merchant !== "Card payment") setShop(read.merchant);
+    if (read.category !== "other") setCategory(read.category);
+    setFromMessage(true);
+    setMessageNote("Check the spend below, then save.");
+  }
 
   function read() {
     const found: typeof errors = {};
@@ -55,7 +56,7 @@ export default function Add() {
     if (!category) found.category = "Pick a category.";
     setErrors(found);
     if (Object.keys(found).length || !pence || !spentOn || !category) return null;
-    return { amount: pence, shopName: shop.trim(), spentOn, category, source: "typed" as const };
+    return { amount: pence, shopName: shop.trim(), spentOn, category, source: fromMessage ? ("message" as const) : ("typed" as const) };
   }
 
   async function save(choice?: { choice: "keep_both" } | { choice: "replace"; savedId: string }) {
@@ -71,6 +72,9 @@ export default function Add() {
       setCategory(null);
       setWhen("today");
       setOtherDay("");
+      setMessage("");
+      setFromMessage(false);
+      setMessageNote(null);
       router.navigate("/");
     } catch (error) {
       if (error instanceof ApiError && error.status === 409 && error.body.duplicate) {
@@ -94,8 +98,38 @@ export default function Add() {
         </T>
       </View>
 
+      <List>
+        <Row onPress={() => router.push("/statement")}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <T kind="strong">Bank or card statement</T>
+            <T kind="small">A CSV from your banking app, or pasted lines. Check them, then save in one go.</T>
+          </View>
+          <T kind="label" style={{ color: color.green }}>
+            Open
+          </T>
+        </Row>
+      </List>
+
       <Card>
-        <T kind="heading">Type it in</T>
+        <T kind="heading">Paste a payment message</T>
+        <T kind="small">From Google Pay, Apple Pay, your bank or Uber.</T>
+        <Field
+          label="Message"
+          value={message}
+          onChangeText={(text) => {
+            setMessage(text);
+            setMessageNote(null);
+          }}
+          placeholder="You paid £14.80 to Uber"
+          multiline
+          style={{ minHeight: 80, paddingTop: 12, textAlignVertical: "top" }}
+        />
+        {messageNote ? <T kind="small" accessibilityLiveRegion="polite">{messageNote}</T> : null}
+        <Button label="Read it" kind="secondary" onPress={readMessage} />
+      </Card>
+
+      <Card>
+        <T kind="heading">{fromMessage ? "Check and save" : "Type it in"}</T>
         <Field
           label="Amount"
           value={amount}

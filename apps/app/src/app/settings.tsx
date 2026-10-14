@@ -2,11 +2,19 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { formatGBP, poundsToPence } from "@briv/core";
+import type { PaydayRuleName } from "@briv/contract";
 import { api, type Me } from "@/lib/api";
 import { useMe, useSession } from "@/lib/session";
 import { BackIcon, CloseIcon, PinIcon } from "@/ui/icons";
-import { Button, Card, Field, List, Problem, RoundButton, Row, Screen, T } from "@/ui/kit";
+import { Button, Card, Chip, Chips, Field, List, Problem, RoundButton, Row, Screen, T } from "@/ui/kit";
 import { color, font, touch } from "@/ui/theme";
+
+const PAYDAY_CHOICES: { id: PaydayRuleName; label: string; line: string }[] = [
+  { id: "day_of_month", label: "A day of the month", line: "Like the 25th. Each pay runs from payday to the day before the next." },
+  { id: "last_working_day", label: "Last working day", line: "The last weekday of the month that is not a bank holiday." },
+  { id: "last_friday", label: "Last Friday", line: "The last Friday of the month, or the working day before it." },
+  { id: "none", label: "Not monthly", line: "Pays are counted as calendar months." },
+];
 
 export default function Settings() {
   const me = useMe();
@@ -14,6 +22,7 @@ export default function Settings() {
   const [name, setName] = useState(me.name);
   const [pay, setPay] = useState(me.profile.usualTakeHome ? formatGBP(me.profile.usualTakeHome).replace(/\.00$/, "") : "");
   const [payday, setPayday] = useState(me.profile.paydayDay ? String(me.profile.paydayDay) : "");
+  const [rule, setRule] = useState<PaydayRuleName>(me.profile.paydayRule);
   const [town, setTown] = useState("");
   const [saved, setSaved] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -41,11 +50,11 @@ export default function Settings() {
   async function saveYou() {
     const takeHome = pay.trim() ? poundsToPence(pay) : null;
     if (pay.trim() && takeHome === null) return setProblem("Type the take-home in pounds, like 2,400.");
-    const day = payday.trim() ? Number(payday) : null;
-    if (day !== null && (!Number.isInteger(day) || day < 1 || day > 31)) return setProblem("Payday is a day from 1 to 31, or empty.");
+    const day = rule === "day_of_month" ? Number(payday) : null;
+    if (rule === "day_of_month" && (!Number.isInteger(day) || !day || day < 1 || day > 31)) return setProblem("Type the day you are paid, from 1 to 31.");
     if (!name.trim()) return setProblem("Type your first name.");
     const ok = await run("you", () =>
-      api<Me>("/me", { method: "PATCH", body: { name: name.trim(), usualTakeHome: takeHome, paydayDay: day } }),
+      api<Me>("/me", { method: "PATCH", body: { name: name.trim(), usualTakeHome: takeHome, paydayRule: rule, paydayDay: day } }),
     );
     if (ok) setSaved(true);
   }
@@ -73,17 +82,43 @@ export default function Settings() {
         <T kind="heading">You and your pay</T>
         <Field label="First name" value={name} onChangeText={setName} autoCapitalize="words" />
         <Field label="Monthly take-home pay" value={pay} onChangeText={setPay} inputMode="decimal" keyboardType="decimal-pad" placeholder="£2,400" />
-        <Field
-          label="Payday, day of the month"
-          value={payday}
-          onChangeText={setPayday}
-          inputMode="numeric"
-          keyboardType="number-pad"
-          maxLength={2}
-          hint="Empty means calendar months."
-        />
+        <View style={{ gap: 8 }}>
+          <T kind="label">When you are paid</T>
+          <Chips>
+            {PAYDAY_CHOICES.map((choice) => (
+              <Chip key={choice.id} label={choice.label} on={rule === choice.id} onPress={() => setRule(choice.id)} />
+            ))}
+          </Chips>
+          <T kind="small">{PAYDAY_CHOICES.find((choice) => choice.id === rule)?.line}</T>
+        </View>
+        {rule === "day_of_month" ? (
+          <Field
+            label="Payday, day of the month"
+            value={payday}
+            onChangeText={setPayday}
+            inputMode="numeric"
+            keyboardType="number-pad"
+            maxLength={2}
+            hint="If it falls on a weekend or bank holiday, we count the working day before, as UK employers pay."
+          />
+        ) : null}
         <Button label={saved ? "Saved" : "Save"} busy={busy === "you"} onPress={saveYou} />
       </Card>
+
+      <List>
+        <Row onPress={() => router.push("/regulars")}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <T kind="strong">Regular payments</T>
+            <T kind="small">Bills and subscriptions, and stopping one</T>
+          </View>
+        </Row>
+        <Row onPress={() => router.push("/statement")}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <T kind="strong">Bank statements</T>
+            <T kind="small">Upload a CSV from your banking app</T>
+          </View>
+        </Row>
+      </List>
 
       <View style={{ gap: 10 }}>
         <T kind="heading">Places</T>

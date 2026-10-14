@@ -4,12 +4,12 @@ import { Row, T } from "@/ui/kit";
 import { font } from "@/ui/theme";
 import { categoryColours, initialOf, paymentLine, pounds } from "./money";
 
-export function PaymentRow({ payment }: { payment: Payment }) {
+export function PaymentRow({ payment, onPress }: { payment: Payment; onPress?: () => void }) {
   const tone = categoryColours(payment.category);
   const name = payment.toPerson ? "Paid to a person" : payment.shopName || "Card payment";
   return (
-    <Row>
-      <View style={[styles.initial, { backgroundColor: tone.tint }]} accessibilityElementsHidden>
+    <Row onPress={onPress} label={`${name}, ${pounds(payment.amount)}, ${paymentLine(payment)}`}>
+      <View style={[styles.initial, { backgroundColor: tone.tint }]} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" aria-hidden>
         <T style={[styles.initialText, { color: tone.ink }]}>{initialOf(name)}</T>
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>

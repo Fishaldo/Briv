@@ -77,6 +77,10 @@ function Navigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="change-location" />
+        <Stack.Screen name="activity" />
+        <Stack.Screen name="payment/[id]" />
+        <Stack.Screen name="statement" />
+        <Stack.Screen name="regulars" />
       </Stack.Protected>
     </Stack>
   );

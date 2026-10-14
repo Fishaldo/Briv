@@ -26,6 +26,7 @@
     "@types/node": "^22.19.0",
     "auth": "^1.7.7",
     "esbuild": "^0.28.2",
+    "postgres": "^3.4.9",
     "typescript": "~6.0.3"
   }
 }

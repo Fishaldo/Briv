@@ -387,6 +387,8 @@ export const regularPayments = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     personId: person(),
+    /** Which payment this is: "p:<statement key>" for one Briv found, "m:<id>" for one the person added. */
+    key: text("key").notNull(),
     name: text("name").notNull(),
     shopId: uuid("shop_id").references(() => shops.id, { onDelete: "set null" }),
     category: text("category").notNull(),
@@ -405,7 +407,7 @@ export const regularPayments = pgTable(
     stoppedAt: timestamp("stopped_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
-  (t) => [index("regular_payments_person_idx").on(t.personId)],
+  (t) => [index("regular_payments_person_idx").on(t.personId), uniqueIndex("regular_payments_person_key_idx").on(t.personId, t.key)],
 );
 
 export const remindersSent = pgTable(
