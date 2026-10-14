@@ -9,6 +9,7 @@ export default function Offers() {
         "Your shops first, then other shops for the same things.",
         "Near you first, then across the UK.",
         "Bills that could cost less.",
+        "Money you send to family and friends is never read as shopping.",
       ]}
     />
   );

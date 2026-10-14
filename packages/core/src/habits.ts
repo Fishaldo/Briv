@@ -1,4 +1,5 @@
-import type { CategoryId, LineItem } from "./model.ts";
+import { countsAsSpending, type CategoryId, type LineItem } from "./model.ts";
+import { isMoneySent, sendingService } from "./money-sent.ts";
 import {
   BIG_TICKET,
   BRAND,
@@ -113,6 +114,16 @@ function matchShop(merchant: string): ShopMatch[] {
   return found.sort((a, b) => b.word.replace(/^=/, "").length - a.word.replace(/^=/, "").length);
 }
 
+/** True when Briv knows this payee as a shop by name: Moonpig, Card Factory, Tesco. */
+export function isKnownShop(merchant: string): boolean {
+  return matchShop(merchant).some((hit) => !GENERIC_SHOP_WORDS.has(hit.word));
+}
+
+/** Money sent to a person or through a transfer app, as opposed to something bought. */
+export function sentNotBought(spend: Parameters<typeof isMoneySent>[0]): boolean {
+  return isMoneySent(spend, isKnownShop(spend.merchant));
+}
+
 /**
  * What a shop sells, learned once from its name by a wider lookup and kept for
  * everyone: merchant core ("cakebox") → interest id ("cakes").
@@ -152,6 +163,8 @@ export function shopsToLookUp(
     if (core.replace(/[^a-z]/g, "").length < 3) continue;
     const named = matchShop(spend.merchant).some((hit) => !GENERIC_SHOP_WORDS.has(hit.word));
     if (named) continue;
+    // Never search the web for the name of someone the person sent money to.
+    if (isMoneySent(spend)) continue;
     const row = found.get(core) ?? {
       core,
       merchant: spend.merchant.trim().slice(0, 60),
@@ -553,6 +566,8 @@ export function buildTaste(
   const usingSamples = real.length === 0 && spends.length > 0;
   const source = (usingSamples ? spends : real).filter((tx) => {
     if (tx.amountPence <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(tx.spentOn)) return false;
+    // Savings, investments and transfers are money moved, not habits to find deals for.
+    if (!countsAsSpending(tx.category)) return false;
     const day = dayNum(tx.spentOn);
     return day > today - 400 && day <= today;
   });
@@ -567,6 +582,18 @@ export function buildTaste(
   for (const tx of source) {
     const day = dayNum(tx.spentOn);
     const minutes = tx.source === "bank" ? null : timeOf(tx.note, tx.rawAlert);
+    if (isMoneySent(tx, isKnownShop(tx.merchant))) {
+      // Money sent to family or friends is not shopping: no gift boxes for a transfer to Mum.
+      // A transfer app is still worth a look, for its fees and rates. A person is never a "shop".
+      const service = sendingService(tx.merchant, tx.description);
+      if (service) {
+        const b = interests.get("sending-money") ?? bucket();
+        b.occs.push({ day, pence: tx.amountPence, minutes });
+        b.shops.set(service, (b.shops.get(service) ?? 0) + 1);
+        interests.set("sending-money", b);
+      }
+      continue;
+    }
     const { id: mainId, brand } = merchantInterest(tx.merchant, tx.category, kinds);
     const info = book[merchantCore(tx.merchant)];
     // The name the shop really goes by, when the web said: "MyPerfectCV", not "BLD*MYPERFECTCV.CO".
