@@ -433,7 +433,7 @@ describe("limits and guards", () => {
     for (let i = 0; i < 7; i++) {
       const res = await app.request("/api/auth/email-otp/send-verification-otp", {
         method: "POST",
-        headers: { Origin: ORIGIN, "Content-Type": "application/json", "x-forwarded-for": `198.51.100.${i}` },
+        headers: { Origin: ORIGIN, "Content-Type": "application/json", "x-test-client-ip": `198.51.100.${i}` },
         body: JSON.stringify({ email: "target@example.com", type: "sign-in" }),
       });
       statuses.push(res.status);

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomInt } from "node:crypto";
 import { createDb } from "@briv/db";
 import { createApp } from "./app.ts";
 import { createAuth } from "./auth.ts";
@@ -20,7 +21,9 @@ export type Called = { status: number; body: any; headers: Headers };
 export function startTestApp(options: { today?: Date; resolveTown?: TownResolver } = {}) {
   const DATABASE_URL = process.env.TEST_DATABASE_URL ?? "pglite:memory";
   const handle = createDb(DATABASE_URL);
-  const env = readEnv({ NODE_ENV: "test", APP_ORIGINS: TEST_ORIGIN, DATABASE_URL });
+  // Each test server has its own client address, so sign-in limits on a shared Postgres don't spill between tests.
+  const env = readEnv({ NODE_ENV: "test", APP_ORIGINS: TEST_ORIGIN, DATABASE_URL, CLIENT_IP_HEADER: "x-test-client-ip" });
+  const clientIp = `10.${randomInt(256)}.${randomInt(256)}.${randomInt(1, 255)}`;
   const codes = new Map<string, string>();
   const mail = async ({ to, text }: { to: string; subject: string; text: string }) => {
     codes.set(to, /\b(\d{6})\b/.exec(text)?.[1] ?? "");
@@ -38,7 +41,7 @@ export function startTestApp(options: { today?: Date; resolveTown?: TownResolver
   });
 
   async function call(path: string, init: { method?: string; body?: unknown; cookie?: string; origin?: string } = {}): Promise<Called> {
-    const headers: Record<string, string> = { Origin: init.origin ?? TEST_ORIGIN };
+    const headers: Record<string, string> = { Origin: init.origin ?? TEST_ORIGIN, "x-test-client-ip": clientIp };
     if (init.body !== undefined) headers["Content-Type"] = "application/json";
     if (init.cookie) headers.Cookie = init.cookie;
     const response = await app.request(path, {
