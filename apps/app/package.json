@@ -10,8 +10,7 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "test": "echo \"app has no unit tests yet\"",
-    "build": "expo export --platform web",
-    "lint": "expo lint"
+    "build": "expo export --platform web"
   },
   "dependencies": {
     "@better-auth/expo": "^1.7.7",

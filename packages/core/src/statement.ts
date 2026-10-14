@@ -144,7 +144,7 @@ function fromTable(lines: string[]): StatementRow[] | null {
     if (!spentOn || !merchant) continue;
     const type = (cells[typeCol] ?? "").toLowerCase();
     if (/salary|income|interest|refund|pot transfer/.test(type)) continue;
-    let amountPence: number | null = null;
+    let amountPence: number | null;
     if (debitCol >= 0) {
       const debit = signedPence(cells[debitCol] ?? "");
       amountPence = debit == null ? null : Math.abs(debit);
@@ -192,4 +192,50 @@ export function parseStatement(text: string): StatementRow[] {
   const table = fromTable(lines);
   if (table && table.length > 0) return table;
   return fromLines(text);
+}
+
+/**
+ * Money coming in on a bank export, kept apart from spending. Briv only uses it
+ * to ask whether one of them is pay. Refunds and transfers stay in the list;
+ * looksLikePay picks out pay.
+ */
+export function parseMoneyIn(text: string): { merchant: string; amountPence: number; date: string }[] {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length < 2) return [];
+  const headers = splitCsv(lines[0]).map((cell) => cell.toLowerCase().replace(/\s+/g, " "));
+  const dateCol = findCol(headers, ["date", "transaction date", "booked date", "posted date", "datetime"]);
+  const nameCol = findCol(headers, [
+    "name",
+    "counter party",
+    "counterparty",
+    "description",
+    "transaction description",
+    "narrative",
+    "merchant",
+    "merchant name",
+    "payee",
+  ]);
+  if (dateCol < 0 || nameCol < 0) return [];
+  const amountCol = findCol(headers, ["amount", "amount (gbp)", "value", "amount gbp", "gross", "net"]);
+  const creditCol = findCol(headers, ["credit amount", "credit", "money in", "paid in"]);
+  if (amountCol < 0 && creditCol < 0) return [];
+  const out: { merchant: string; amountPence: number; date: string }[] = [];
+  for (const line of lines.slice(1)) {
+    const cells = splitCsv(line);
+    const date = statementDate(cells[dateCol] ?? "");
+    const merchant = (cells[nameCol] ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
+    if (!date || !merchant) continue;
+    let amountPence: number | null;
+    if (creditCol >= 0) {
+      const credit = signedPence(cells[creditCol] ?? "");
+      amountPence = credit == null ? null : Math.abs(credit);
+    } else {
+      const signed = signedPence(cells[amountCol] ?? "");
+      amountPence = signed != null && signed > 0 ? signed : null;
+    }
+    if (!amountPence) continue;
+    out.push({ merchant, amountPence, date });
+    if (out.length >= 50) break;
+  }
+  return out;
 }

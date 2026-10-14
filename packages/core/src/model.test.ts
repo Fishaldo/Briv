@@ -165,3 +165,14 @@ describe("already saved?", () => {
     assert.equal(samePayment(saved, { merchant: "Aldi", amountPence: 2450, spentOn: "2026-10-01" }), false);
   });
 });
+
+describe("said out loud", () => {
+  it("turns spoken pounds into an amount Briv can read", async () => {
+    const { spokenToAlert } = await import("./model.ts");
+    assert.equal(spokenToAlert("about 20 pounds at ASDA groceries"), "about £20 at ASDA groceries");
+    assert.equal(spokenToAlert("£4 and 20p at Greggs"), "£4.20 at Greggs");
+    const alert = parseAlert(spokenToAlert("about 20 pounds at Asda groceries"));
+    assert.equal(alert.amountPence, 2000);
+    assert.equal(alert.category, "groceries");
+  });
+});

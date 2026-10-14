@@ -5,6 +5,7 @@ import { authUsers, consents, createDb, payments, profiles } from "@briv/db";
 import { createApp } from "./app.ts";
 import { createAuth } from "./auth.ts";
 import { readEnv } from "./env.ts";
+import { memoryLogger } from "./log.ts";
 import { unseal } from "./seal.ts";
 import { townFromPostcodes } from "./town.ts";
 
@@ -213,6 +214,28 @@ describe("typed spends", () => {
     assert.equal(gone.length, 0);
   });
 
+  it("keeps no name when a gift went to a person, even if the app did not say so", async () => {
+    const res = await call("/me/payments", {
+      cookie: ada,
+      body: { amount: 13200, spentOn: "2026-08-06", shopName: "SOMTOCHUKWU NKEMEL", category: "gifts", statement: "FPS SOMTOCHUKWU NKEMEL" },
+    });
+    assert.equal(res.status, 201, JSON.stringify(res.body));
+    assert.equal(res.body.payment.toPerson, true);
+    assert.equal(res.body.payment.shopName, null);
+    const [row] = await handle.db.select().from(payments).where(eq(payments.id, res.body.payment.id));
+    assert.equal(row.statementSealed, null);
+  });
+
+  it("keeps the shop's name for a gift bought in a shop", async () => {
+    const res = await call("/me/payments", {
+      cookie: ada,
+      body: { amount: 450, spentOn: "2026-08-06", shopName: "Moonpig", category: "gifts" },
+    });
+    assert.equal(res.status, 201, JSON.stringify(res.body));
+    assert.equal(res.body.payment.toPerson, false);
+    assert.equal(res.body.payment.shopName, "Moonpig");
+  });
+
   it("keeps only amount and date for a payment to a person", async () => {
     const res = await call("/me/payments", {
       cookie: ada,
@@ -289,6 +312,62 @@ describe("deleting an account", () => {
     assert.equal(account.length, 0);
     const after = await call("/me", { cookie: ada });
     assert.equal(after.status, 401);
+  });
+});
+
+describe("when something goes wrong", () => {
+  it("gives every answer a request id", async () => {
+    const res = await call("/health");
+    assert.match(res.headers.get("x-request-id") ?? "", /^[\w-]{8,}$/);
+  });
+
+  it("answers an unknown address in plain words", async () => {
+    const res = await call("/nothing-here");
+    assert.equal(res.status, 404);
+    assert.equal(res.body.error, "There is nothing here.");
+  });
+
+  it("hides the error from the person, logs it with the route, and quotes an id", async () => {
+    const cy = await signIn("cy@example.com");
+    const log = memoryLogger();
+    const reported: string[] = [];
+    // The session store failing mid-request, as a database outage would.
+    const failing = {
+      ...auth,
+      api: {
+        ...auth.api,
+        getSession: async () => {
+          throw new Error("connection to sessions refused at 52.44,-1.93");
+        },
+      },
+    } as unknown as typeof auth;
+    const broken = createApp({
+      db: handle.db,
+      auth: failing,
+      env,
+      resolveTown: async () => null,
+      log,
+      report: (_error, context) => reported.push(context.route),
+    });
+    const response = await broken.request("/me/location", {
+      method: "POST",
+      headers: { Origin: ORIGIN, Cookie: cy, "Content-Type": "application/json" },
+      body: JSON.stringify({ allowed: true, precise: true, lat: 52.4429, lng: -1.9365 }),
+    });
+    const body = (await response.json()) as { error: string; requestId: string };
+    assert.equal(response.status, 500);
+    assert.equal(body.error, "Something went wrong on our side. Try again in a moment.");
+    assert.equal(body.requestId, response.headers.get("x-request-id"));
+    assert.ok(!JSON.stringify(body).includes("sessions"));
+    const line = log.lines.find((row) => row.event === "server_error");
+    assert.ok(line);
+    assert.equal(line.fields.route, "/me/location");
+    assert.equal(line.fields.id, body.requestId);
+    assert.deepEqual(reported, ["/me/location"]);
+    // The request line names the route, never the full path or what was sent.
+    const request = log.lines.find((row) => row.event === "request");
+    assert.equal(request?.fields.status, 500);
+    assert.ok(!JSON.stringify(log.lines.map((row) => row.fields.route)).includes("52.44"));
   });
 });
 

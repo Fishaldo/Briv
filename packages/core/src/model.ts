@@ -55,6 +55,11 @@ export type Tx = {
   rawAlert: string;
   isSample: boolean;
   createdAt: string;
+  /**
+   * What the person said it was with one tap, as an interest id such as
+   * "perfume". "-" means they chose not to say. Empty means not asked yet.
+   */
+  kind?: string;
 };
 
 export type Profile = {
@@ -66,6 +71,10 @@ export type Profile = {
   notifyAlerts: boolean;
   lat: number | null;
   lng: number | null;
+  /** The location question after the first sign-in has been answered or skipped. */
+  locationAsked: boolean;
+  /** Day of the week for the weekly check-in, 0 is Sunday. Null means none. */
+  weeklyDay: number | null;
 };
 
 export type WalletAlert = {
@@ -514,6 +523,15 @@ export function parseAlert(raw: string): ParsedAlert {
   };
 }
 
+/** "About 20 pounds at ASDA, groceries" reads as "about £20 at ASDA, groceries". */
+export function spokenToAlert(text: string): string {
+  return text
+    .replace(/(\d+(?:[.,]\d{1,2})?)\s*(?:pounds?|quid|gbp)\b/gi, (_, n: string) => `£${n.replace(",", ".")}`)
+    .replace(/£\s*(\d+)\s*(?:and\s*)?(\d{1,2})\s*p(?:ence)?\b/gi, (_, a: string, b: string) => `£${a}.${b.padStart(2, "0")}`)
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export type MonthSummary = {
   key: string;
   /** Money spent. Savings, investments and transfers are not in this total. */
@@ -754,7 +772,8 @@ export function buildAdvice(input: {
       const prev = previous.byCategory.find((p) => p.id === row.id)?.amount ?? 0;
       return { id: row.id, now: row.amount, prev, delta: row.amount - prev };
     })
-    .filter((row) => row.prev >= 800 && row.delta > row.prev * 0.15 && row.id !== top?.id)
+    // Health is never something Briv tells people to cut.
+    .filter((row) => row.prev >= 800 && row.delta > row.prev * 0.15 && row.id !== top?.id && row.id !== "health")
     .sort((a, b) => b.delta - a.delta);
 
   const rise = rises[0];

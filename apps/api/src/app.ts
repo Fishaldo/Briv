@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { HTTPException } from "hono/http-exception";
+import { requestId } from "hono/request-id";
+import { routePath } from "hono/route";
 import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
@@ -9,7 +11,10 @@ import {
   CATEGORIES,
   countsAsSpending,
   isCategory,
+  isKnownShop,
+  isMoneySent,
   paySpan,
+  payeeKind,
   projectedSpend,
   samePayment,
   spanProgress,
@@ -22,11 +27,12 @@ import {
 import { authUsers, consents, payments, places, profiles, settings, type Database } from "@briv/db";
 import type { Auth } from "./auth.ts";
 import type { Env } from "./env.ts";
+import { jsonLogger, type ErrorReporter, type Logger } from "./log.ts";
 import { forgetPerson, personFor } from "./people.ts";
 import { seal } from "./seal.ts";
 import { inUk, type TownResolver } from "./town.ts";
 
-type Vars = { userId: string; personId: string };
+type Vars = { userId: string; personId: string; requestId: string };
 
 export type AppDeps = {
   db: Database;
@@ -35,6 +41,10 @@ export type AppDeps = {
   resolveTown: TownResolver;
   /** Today, for pay periods. Tests pass a fixed day. */
   today?: () => Date;
+  /** Where logs go. JSON lines on stdout unless a test passes its own. */
+  log?: Logger;
+  /** Where server errors go besides the log, such as an error-tracking service. */
+  report?: ErrorReporter;
 };
 
 const town = z.string().trim().min(2).max(80);
@@ -101,8 +111,24 @@ function paydayOf(profile: { paydayRule: string; paydayDay: number | null }): nu
 export function createApp(deps: AppDeps) {
   const { db, auth, env, resolveTown } = deps;
   const today = deps.today ?? (() => new Date());
+  const log = deps.log ?? jsonLogger;
   const app = new Hono<{ Variables: Vars }>();
 
+  // Every request gets an id, sent back as X-Request-Id and quoted in error messages.
+  app.use("*", requestId());
+  app.use("*", async (c, next) => {
+    const started = performance.now();
+    await next();
+    if (c.req.path === "/health") return;
+    // The route pattern, never the full path or query, so no ids or dates land in the log.
+    log("info", "request", {
+      id: c.var.requestId,
+      method: c.req.method,
+      route: routePath(c, -1),
+      status: c.res.status,
+      ms: Math.round(performance.now() - started),
+    });
+  });
   app.use("*", secureHeaders());
   app.use(
     "*",
@@ -117,9 +143,18 @@ export function createApp(deps: AppDeps) {
 
   app.onError((err, c) => {
     if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);
-    console.error(err);
-    return c.json({ error: "Something went wrong on our side. Try again in a moment." }, 500);
+    const context = { requestId: c.var.requestId, method: c.req.method, route: routePath(c, -1) };
+    log("error", "server_error", { id: context.requestId, method: context.method, route: context.route, error: err.name, stack: err.stack });
+    try {
+      deps.report?.(err, context);
+    } catch {
+      // A reporter that fails must never turn one error into two.
+    }
+    // The person sees a plain message and an id to quote; never the error itself.
+    return c.json({ error: "Something went wrong on our side. Try again in a moment.", requestId: context.requestId }, 500);
   });
+
+  app.notFound((c) => c.json({ error: "There is nothing here." }, 404));
 
   app.get("/health", async (c) => {
     await db.execute(sql`select 1`);
@@ -300,7 +335,14 @@ export function createApp(deps: AppDeps) {
     const body = parse(newPayment, await c.req.json().catch(() => ({})));
     const personId = c.var.personId;
     const category = body.category as CategoryId;
-    const shopName = body.toPerson ? null : (body.shopName ?? null);
+    // Money sent to a person keeps no name, even when the app did not say so:
+    // "SOMTOCHUKWU NKEMEL" filed as a gift is a person, Moonpig is a shop.
+    const named = body.shopName ?? "";
+    const looksSent =
+      payeeKind(named, body.statement ?? "") === "person" &&
+      isMoneySent({ merchant: named, description: body.statement, category, source: body.source }, isKnownShop(named));
+    const toPerson = body.toPerson ?? looksSent;
+    const shopName = toPerson ? null : (body.shopName ?? null);
 
     // Same amount, same shop, same date: ask before saving twice.
     const sameDay = await db
@@ -332,10 +374,10 @@ export function createApp(deps: AppDeps) {
         note: body.note ?? null,
         source: body.source,
         hasReceipt: body.hasReceipt ?? false,
-        toPerson: body.toPerson ?? false,
+        toPerson,
         countsAsSpending: countsAsSpending(category),
         // A payment to a person keeps no statement text: it would name them.
-        statementSealed: body.statement && !body.toPerson ? seal(body.statement, env.sealKey) : null,
+        statementSealed: body.statement && !toPerson ? seal(body.statement, env.sealKey) : null,
       })
       .returning();
     return c.json({ payment: publicPayment(row) }, 201);

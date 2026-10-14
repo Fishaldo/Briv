@@ -179,6 +179,22 @@ export function shopsToLookUp(
 }
 
 /** Which interest a merchant belongs to, honouring the category the person chose. */
+/**
+ * The kinds of thing a shop sells, when it sells several: Boots is perfume,
+ * pharmacy or toiletries. Empty when the shop sells one kind of thing, or Briv
+ * does not know it, so nothing needs asking.
+ */
+export function shopChoices(merchant: string): { id: string; label: string; category: CategoryId }[] {
+  const seen = new Set<string>();
+  const out: { id: string; label: string; category: CategoryId }[] = [];
+  for (const hit of matchShop(merchant)) {
+    if (GENERIC_SHOP_WORDS.has(hit.word) || seen.has(hit.interest.id)) continue;
+    seen.add(hit.interest.id);
+    out.push({ id: hit.interest.id, label: hit.interest.label, category: hit.interest.category });
+  }
+  return out.length >= 2 ? out.slice(0, 4) : [];
+}
+
 export function merchantInterest(
   merchant: string,
   category: CategoryId,
@@ -455,6 +471,8 @@ export type SpendInput = {
   isSample?: boolean;
   /** The payee as the bank printed it, such as "BLD*MYPERFECTCV.CO". */
   description?: string;
+  /** What the person said it was, with one tap: an interest id such as "perfume". */
+  kind?: string;
 };
 
 /** What a shop really is, found on the web: "Pizza & Co", a pizza takeaway near Birmingham. */
@@ -594,7 +612,9 @@ export function buildTaste(
       }
       continue;
     }
-    const { id: mainId, brand } = merchantInterest(tx.merchant, tx.category, kinds);
+    const { id: shopId, brand } = merchantInterest(tx.merchant, tx.category, kinds);
+    // The person's own answer ("perfume", not pharmacy) beats anything worked out from the shop.
+    const mainId = tx.kind && interestDef(tx.kind) ? tx.kind : shopId;
     const info = book[merchantCore(tx.merchant)];
     // The name the shop really goes by, when the web said: "MyPerfectCV", not "BLD*MYPERFECTCV.CO".
     const shopName = brand ?? (info?.name || tx.merchant.trim());

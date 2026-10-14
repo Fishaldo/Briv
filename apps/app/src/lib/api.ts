@@ -33,7 +33,7 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
     throw new ApiError(0, `${APP_NAME} can't reach the internet right now. Check your connection and try again.`, {});
   }
   const text = await response.text();
-  let body: Record<string, unknown> = {};
+  let body: Record<string, unknown>;
   try {
     body = text ? JSON.parse(text) : {};
   } catch {

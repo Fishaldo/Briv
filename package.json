@@ -7,13 +7,21 @@
     "node": ">=22.18"
   },
   "scripts": {
+    "lint": "eslint .",
     "typecheck": "pnpm -r --workspace-concurrency=1 run typecheck",
     "test": "pnpm -r run test",
     "build": "pnpm -r run build",
-    "check": "pnpm typecheck && pnpm test && pnpm build",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "dev:api": "pnpm --filter @briv/api dev",
     "dev:app": "pnpm --filter @briv/app start",
     "db:generate": "pnpm --filter @briv/db generate",
     "db:migrate": "pnpm --filter @briv/db migrate"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.12.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
+    "typescript-eslint": "^8.71.2"
   }
 }
