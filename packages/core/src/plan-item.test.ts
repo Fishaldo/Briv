@@ -15,6 +15,44 @@ describe("Plan, from what was typed", () => {
     assert.equal(planKindFor("shower gel"), "personal");
     assert.equal(planKindFor("bedding"), "household");
     assert.equal(planKindFor("a plumber"), "repairs");
+    const cases: [string, string][] = [
+      ["Fuel", "transport"],
+      ["petrol", "transport"],
+      ["train ticket to Leeds", "transport"],
+      ["weekly shop", "groceries"],
+      ["takeaway pizza", "dining"],
+      ["pints with friends", "pub"],
+      ["gas bill", "energy"],
+      ["broadband", "broadband"],
+      ["SIM only deal", "mobile"],
+      ["council tax", "bills"],
+      ["car insurance", "insurance"],
+      ["car seat", "kids"],
+      ["car tyres", "car"],
+      ["parking at the airport", "parking"],
+      ["driving lessons", "driving"],
+      ["flights to Lagos", "travel"],
+      ["hotel in Leeds", "holiday"],
+      ["TV", "tech"],
+      ["Sky TV package", "tv"],
+      ["school shoes", "kids"],
+      ["flowers for mum", "gifts"],
+      ["dentist", "health"],
+      ["haircut", "personal"],
+      ["gym membership", "fitness"],
+      ["badminton court", "sport"],
+      ["cinema tickets", "entertainment"],
+      ["dog food", "pets"],
+      ["nursery", "childcare"],
+      ["Netflix", "subscriptions"],
+      ["wedding venue", "events"],
+      ["man and van", "moving"],
+      ["toilet roll", "household"],
+      ["lawn mower", "garden"],
+      ["shower head", "diy"],
+      ["donation", "charity"],
+    ];
+    for (const [item, kind] of cases) assert.equal(planKindFor(item), kind, item);
     assert.equal(planKindFor("something nice"), null);
     assert.equal(planKindFor(""), null);
   });
