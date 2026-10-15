@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { itemQuery, keyWords, planKindFor, planQueries } from "./plan-item.ts";
+import { itemQuery, keyWords, planKindFor, planQueries, splitByBudget } from "./plan-item.ts";
 
 describe("Plan, from what was typed", () => {
   it("knows which What an item is", () => {
@@ -93,5 +93,27 @@ describe("Plan, from what was typed", () => {
   it("uses the What and its extra searches when no item is given", () => {
     const queries = planQueries({ item: "", town: "Leeds", answers: "click and collect", category: "supermarket", extra: ["tesco", "asda", "aldi"] });
     assert.deepEqual(queries, ["Leeds supermarket click and collect", "supermarket click and collect", "Leeds supermarket", "supermarket", "tesco", "asda"]);
+  });
+});
+
+describe("a budget", () => {
+  const deals = [
+    { id: "a", pricePence: 3999 },
+    { id: "b", pricePence: 2999 },
+    { id: "c", pricePence: null },
+    { id: "d", pricePence: 6999 },
+    { id: "e", pricePence: 3000 },
+    { id: "f", pricePence: 3500, monthly: true },
+  ];
+
+  it("keeps what fits, in order, and puts what is over it apart", () => {
+    const { within, over } = splitByBudget(deals, 3000);
+    assert.deepEqual(within.map((d) => d.id), ["b", "c", "e", "f"]);
+    assert.deepEqual(over.map((d) => d.id), ["a", "d"]);
+  });
+
+  it("lets everything fit when there is no budget", () => {
+    assert.equal(splitByBudget(deals, null).within.length, deals.length);
+    assert.equal(splitByBudget(deals, 0).over.length, 0);
   });
 });
