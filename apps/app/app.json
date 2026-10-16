@@ -11,9 +11,11 @@
       "icon": "./assets/expo.icon",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Briv uses your location once to find your town, so nearby deals come first. Only the town is saved."
-      }
+      },
+      "bundleIdentifier": "uk.co.origingreens.spending"
     },
     "android": {
+      "package": "uk.co.origingreens.spending",
       "adaptiveIcon": {
         "backgroundColor": "#E3EFE8",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -40,7 +42,9 @@
           "backgroundColor": "#F3F4F0",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76,
-          "dark": { "backgroundColor": "#0E1311" }
+          "dark": {
+            "backgroundColor": "#0E1311"
+          }
         }
       ],
       [
@@ -53,6 +57,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "202e59fe-56e8-421c-9b8c-47ddb23964dd"
+      }
     }
   }
 }
