@@ -11,6 +11,7 @@
     "typecheck": "pnpm -r --workspace-concurrency=1 run typecheck",
     "test": "pnpm -r run test",
     "build": "pnpm -r run build",
+    "vercel-build": "pnpm --filter @briv/api vercel-build",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "dev:api": "pnpm --filter @briv/api dev",
     "dev:app": "pnpm --filter @briv/app start",

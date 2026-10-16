@@ -43,6 +43,8 @@ const schema = z.object({
   CLIENT_IP_HEADER: z.string().optional(),
   /** Error monitoring (Sentry). Without it, errors are only in the log. */
   SENTRY_DSN: z.string().url().optional(),
+  /** The secret a host's scheduler sends to run a job over the web (Vercel's cron). 32+ characters. */
+  CRON_SECRET: z.string().min(32).optional(),
   /** "staging" or "live" in error reports. Defaults to live or development. */
   SENTRY_ENVIRONMENT: z.string().max(32).optional(),
   /** The release running, such as the git commit, so a report says which code it came from. */

@@ -9,7 +9,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test src/*.test.ts",
     "build": "node build.ts",
-    "auth:schema": "auth generate --config src/auth-cli.ts --output ../../packages/db/src/auth-schema.generated.ts --yes"
+    "auth:schema": "auth generate --config src/auth-cli.ts --output ../../packages/db/src/auth-schema.generated.ts --yes",
+    "vercel-build": "node vercel-build.ts"
   },
   "dependencies": {
     "@better-auth/expo": "^1.7.7",
@@ -17,6 +18,7 @@
     "@briv/core": "workspace:*",
     "@briv/db": "workspace:*",
     "@hono/node-server": "^2.1.5",
+    "@vercel/functions": "^3.10.1",
     "better-auth": "^1.7.7",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.13",

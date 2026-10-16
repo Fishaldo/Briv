@@ -13,6 +13,7 @@ export default tseslint.config(
     ignores: [
       "**/node_modules/**",
       "**/dist/**",
+      "**/.vercel/**",
       "**/.expo/**",
       "**/web-build/**",
       "**/*.generated.ts",

@@ -22,8 +22,11 @@ import { signInCodeMessage, type Mailer } from "./mail.ts";
  *   email (that one is in app.ts, as Better Auth counts by address only);
  * - entering a code: 5 a minute; each code takes 3 wrong tries, then a new one is needed.
  * Codes are stored hashed and last 5 minutes.
+ *
+ * Where the host stops work once a reply is sent (Vercel), `runInBackground`
+ * hands it the work that finishes after the reply, such as sending the code.
  */
-export function createAuth(db: Database, env: Env, mail: Mailer) {
+export function createAuth(db: Database, env: Env, mail: Mailer, options: { runInBackground?: (task: Promise<unknown>) => void } = {}) {
   const socialProviders: BetterAuthOptions["socialProviders"] = {};
   if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
     socialProviders.google = { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET };
@@ -70,6 +73,8 @@ export function createAuth(db: Database, env: Env, mail: Mailer) {
     advanced: {
       ipAddress: env.CLIENT_IP_HEADER ? { ipAddressHeaders: [env.CLIENT_IP_HEADER.toLowerCase()] } : undefined,
       useSecureCookies: env.live,
+      // On Vercel, work after the reply (such as sending the code) must be handed to the host, or it may be cut off.
+      backgroundTasks: options.runInBackground ? { handler: options.runInBackground } : undefined,
     },
     user: {
       additionalFields: {
