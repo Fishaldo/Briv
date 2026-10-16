@@ -47,6 +47,17 @@ pnpm check          # lint, typecheck, tests and build, as GitHub runs them
 
 GitHub also runs the server's tests against a real Postgres, checks that every schema change has a migration, and fails on known high-risk security problems in anything live runs (`pnpm audit --prod`). Two findings in Expo's build tools are listed as accepted in `pnpm-workspace.yaml`, with the reason; they never run on the server or in the app.
 
+### Phone builds (Expo)
+
+Builds run on Expo's servers from `apps/app` (`eas.json`), started from the project on expo.dev, which is linked to this repository with `apps/app` as its base directory.
+
+| Profile | What it makes |
+|---|---|
+| `preview` | An Android `.apk` to install straight onto a test phone, talking to the live server. |
+| `production` | Store builds, later. |
+
+The app ID, `uk.co.origingreens.spending`, is neutral on purpose: the App Store and Google Play cannot change it after launch, while the name can change.
+
 ### Changing the database
 
 1. Edit `packages/db/src/schema.ts`.
