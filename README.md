@@ -76,10 +76,25 @@ Set these in the hosting dashboard, never in the code.
 | `RESEND_API_KEY`, `MAIL_FROM` | Yes | For emailing sign-in and delete codes. |
 | `SENTRY_DSN` | Recommended | Error monitoring: server errors, job failures and app crashes. Only the kind of error and where it happened are sent. |
 | `SENTRY_ENVIRONMENT`, `RELEASE` | No | `staging` or `live`, and the git commit, to label error reports. |
+| `CRON_SECRET` | On Vercel | 32+ random characters. Vercel's daily job sends it to run `/jobs/retention`; without it the job is refused. |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | No | Sign in with Google, when set. |
 | `APPLE_CLIENT_ID`, `APPLE_CLIENT_SECRET`, `APPLE_APP_BUNDLE_IDENTIFIER` | No | Sign in with Apple, when set. |
 
 For the app: `EXPO_PUBLIC_API_URL` (the server's address) and `EXPO_PUBLIC_SIGN_IN_PROVIDERS` (`apple,google` once those are set up).
+
+### On Vercel
+
+The website and the server are one Vercel project, built from the repository root by `pnpm vercel-build` (set in `vercel.json`). The build:
+
+1. on Production only, brings the database up to date (a failed migration fails the build, so the running version stays);
+2. builds the website, which calls the address it was loaded from;
+3. bundles the server into one Vercel Function in London (`lhr1`), next to the database;
+4. sends `/api/auth/*`, `/me/*`, `/health` and `/jobs/*` to the server, serves the website's files, and sends every other path to the website;
+5. runs the retention job every day at 03:30 UTC through `/jobs/retention`.
+
+Type these into the project's Environment Variables, for **Production** only: `DATABASE_URL`, `BETTER_AUTH_SECRET`, `SEAL_KEYS`, `RESEND_API_KEY`, `MAIL_FROM`, `CRON_SECRET`, and `SENTRY_DSN`. Vercel fills in the rest: the server's address and the allowed website (`BETTER_AUTH_URL`, `APP_ORIGINS`) are the project's own address, `CLIENT_IP_HEADER` is `x-real-ip` (Vercel overwrites whatever a visitor sends), and error reports are labelled with the deployment and commit. Anything typed in wins.
+
+Preview deployments get no database, so their server answers "not ready" while the website still loads. If a Production setting is missing, the server does the same, and the log line `startup_failed` names what is missing (names only, never values).
 
 ### What the host runs
 

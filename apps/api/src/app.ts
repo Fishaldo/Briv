@@ -16,6 +16,7 @@ import { jsonLogger, safeError, type ErrorReporter, type Logger } from "./log.ts
 import type { Mailer } from "./mail.ts";
 import { personFor } from "./people.ts";
 import { errorRoutes } from "./routes/errors.ts";
+import { jobRoutes } from "./routes/jobs.ts";
 import { meRoutes } from "./routes/me.ts";
 import { moneyRoutes } from "./routes/money.ts";
 import { paymentRoutes } from "./routes/payments.ts";
@@ -108,6 +109,9 @@ export function createApp(deps: AppDeps) {
     await next();
   });
   app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+
+  // Daily jobs called by the host's scheduler; refused unless it sends CRON_SECRET.
+  app.route("/jobs", jobRoutes({ db, secret: env.CRON_SECRET, log, report: deps.report }));
 
   /* Everything below needs a signed-in person, and only ever sees that person's rows. */
   const me = new Hono<{ Variables: Vars }>();

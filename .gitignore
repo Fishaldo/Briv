@@ -13,3 +13,4 @@ coverage/
 .pglite/
 screenshots/
 *.generated.ts
+.vercel/
