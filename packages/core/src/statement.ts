@@ -1,3 +1,4 @@
+import { movementOf } from "./counting.ts";
 import { londonToday } from "./dates.ts";
 import { isCategory, parseAlert, poundsToPence, validDate, type CategoryId } from "./model.ts";
 
@@ -364,8 +365,9 @@ function fromTable(rows: string[][], forced?: SignConvention): StatementRead | n
       spentOn,
       merchant,
       amountPence: outPence as number,
-      // The bank's type ("FASTER PAYMENT", "DD") helps tell a person from a shop.
-      category: labelCategory(row[cols.label] ?? "", `${type} ${merchant} ${text}`),
+      // Paying off a credit card or moving money to your own pots is not spending.
+      // Otherwise the bank's type ("FASTER PAYMENT", "DD") helps tell a person from a shop.
+      category: movementOf(type, merchant, text) ? "transfers" : labelCategory(row[cols.label] ?? "", `${type} ${merchant} ${text}`),
       ...(printed ? { description: printed } : {}),
     });
   }
@@ -391,7 +393,7 @@ function fromLines(text: string, today: string): StatementRead {
       spentOn: spentOn ?? today,
       merchant: parsed.merchant.slice(0, 80),
       amountPence: parsed.amountPence,
-      category: parsed.category,
+      category: movementOf(rest) ? "transfers" : parsed.category,
     });
     if (rows.length >= MAX_ROWS) break;
   }

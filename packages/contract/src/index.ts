@@ -271,8 +271,12 @@ export type PaymentList = {
 
 export type BatchAnswer = {
   saved: number;
-  /** Rows that look already saved, with the saved payment, to ask about. */
-  clashes: { index: number; saved: Payment }[];
+  /**
+   * Rows that look already saved, with the saved payment, to ask about. "same-day" is the
+   * same amount, shop and day; "posted-later" is a bank line a few days after a receipt,
+   * alert or typed spend for the same amount at the same shop.
+   */
+  clashes: { index: number; saved: Payment; reason: "same-day" | "posted-later" }[];
   /** How many rows took a name or category from one of the person's own fixes. */
   fixed: number;
 };
