@@ -2,10 +2,11 @@ import { Hono } from "hono";
 import {
   addDays,
   countsAsSpending,
+  daysToCheck,
   isPaymentToPerson,
   isSearchPeriod,
   matchesSearch,
-  samePayment,
+  sameSpend,
   searchTotals,
   searchWords,
   SEARCH_PERIODS,
@@ -81,13 +82,12 @@ export function paymentRoutes(deps: RouteDeps, person: (personId: string) => Per
       }
     }
 
-    // Same amount, same shop, same date: ask before saving twice.
-    const sameDay = await mine.payments.sameDay(body.amount, body.spentOn);
-    const match = sameDay.find((row) =>
-      samePayment(
-        { merchant: row.shopName ?? "", amountPence: body.amount, spentOn: body.spentOn },
-        { merchant: shopName ?? "", amountPence: body.amount, spentOn: body.spentOn },
-      ),
+    // Ask before saving one spend twice: same amount, shop and day, or a receipt
+    // and its bank line a few days apart (the no-double-count rules in core).
+    const near = await mine.payments.sameAmount(body.amount, daysToCheck(body.spentOn));
+    const incoming = { merchant: shopName ?? "", amountPence: body.amount, spentOn: body.spentOn, origin: body.source };
+    const match = near.find((row) =>
+      sameSpend({ merchant: row.shopName ?? "", amountPence: row.payment.amount, spentOn: row.payment.spentOn, origin: row.payment.source }, incoming),
     );
     if (match && !body.duplicate) return c.json({ error: "This looks already saved.", duplicate: match.payment }, 409);
 
@@ -120,7 +120,7 @@ export function paymentRoutes(deps: RouteDeps, person: (personId: string) => Per
     const body = parse(paymentBatch, await c.req.json().catch(() => ({})));
     const mine = person(c.var.personId);
     const fixes = await mine.fixes.forKeys(body.rows.map((row) => statementKeyOf(row.statement ?? null, row.shopName)));
-    const saved = await mine.payments.onDays(body.rows.map((row) => row.spentOn));
+    const saved = await mine.payments.onDays(body.rows.flatMap((row) => daysToCheck(row.spentOn)));
     const clashes: BatchAnswer["clashes"] = [];
     const toSave: NewPaymentRow[] = [];
     let fixed = 0;
@@ -135,17 +135,16 @@ export function paymentRoutes(deps: RouteDeps, person: (personId: string) => Per
         category = fix.category;
         fixed += 1;
       }
-      const match = saved.find(
-        (old) =>
-          old.payment.spentOn === row.spentOn &&
-          samePayment(
-            { merchant: old.shopName ?? "", amountPence: old.payment.amount, spentOn: old.payment.spentOn },
-            { merchant: shopName ?? "", amountPence: row.amount, spentOn: row.spentOn },
-          ),
-      );
-      if (match && !row.keepBoth) {
-        clashes.push({ index, saved: match.payment });
-        return;
+      const incoming = { merchant: shopName ?? "", amountPence: row.amount, spentOn: row.spentOn, origin: body.source };
+      for (const old of row.keepBoth ? [] : saved) {
+        const reason = sameSpend(
+          { merchant: old.shopName ?? "", amountPence: old.payment.amount, spentOn: old.payment.spentOn, origin: old.payment.source },
+          incoming,
+        );
+        if (reason) {
+          clashes.push({ index, saved: old.payment, reason });
+          return;
+        }
       }
       toSave.push({
         amount: row.amount,

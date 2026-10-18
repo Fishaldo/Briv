@@ -121,6 +121,49 @@ describe("a bank statement, saved in one go", () => {
     assert.equal(res.body.clashes.length, 0);
   });
 
+  it("sees a receipt and its bank line two days later as one spend, and says why", async () => {
+    await spend({ amount: 2340, spentOn: "2026-10-08", shopName: "Boots", category: "health", source: "receipt", hasReceipt: true });
+    const res = await t.call("/me/payments/batch", {
+      cookie: ada,
+      body: {
+        rows: [
+          { amount: 2340, spentOn: "2026-10-10", shopName: "BOOTS 1234", category: "health", statement: "BOOTS 1234 LONDON" },
+          { amount: 2340, spentOn: "2026-10-15", shopName: "BOOTS 1234", category: "health", statement: "BOOTS 1234 LONDON" },
+        ],
+      },
+    });
+    assert.equal(res.status, 201, JSON.stringify(res.body));
+    assert.equal(res.body.saved, 1, "a week later is another spend");
+    assert.equal(res.body.clashes.length, 1);
+    assert.equal(res.body.clashes[0].index, 0);
+    assert.equal(res.body.clashes[0].reason, "posted-later");
+    assert.equal(res.body.clashes[0].saved.shopName, "Boots");
+  });
+
+  it("asks before saving a receipt whose bank line is already in", async () => {
+    await t.call("/me/payments/batch", {
+      cookie: ada,
+      body: { rows: [{ amount: 3115, spentOn: "2026-10-09", shopName: "LIDL GB", category: "household", statement: "LIDL GB CROYDON" }] },
+    });
+    const res = await t.call("/me/payments", {
+      cookie: ada,
+      body: { amount: 3115, spentOn: "2026-10-07", shopName: "Lidl", category: "household", source: "receipt" },
+    });
+    assert.equal(res.status, 409, JSON.stringify(res.body));
+    assert.equal(res.body.duplicate.spentOn, "2026-10-09");
+  });
+
+  it("files paying off a credit card as money moved, not spent", async () => {
+    const res = await t.call("/me/payments/batch", {
+      cookie: ada,
+      body: { rows: [{ amount: 35000, spentOn: "2026-10-11", shopName: "AMERICAN EXPRESS DD", category: "transfers", statement: "AMERICAN EXPRESS DD" }] },
+    });
+    assert.equal(res.body.saved, 1);
+    const list = await t.call("/me/payments?q=american", { cookie: ada });
+    assert.equal(list.body.payments[0].countsAsSpending, false);
+    assert.equal(list.body.totals.spent, 0);
+  });
+
   it("refuses an empty or oversized import", async () => {
     const empty = await t.call("/me/payments/batch", { cookie: ada, body: { rows: [] } });
     assert.equal(empty.status, 400);

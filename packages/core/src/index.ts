@@ -5,6 +5,7 @@
 export * from "./brand.ts";
 export * from "./model.ts";
 export * from "./duplicate.ts";
+export * from "./counting.ts";
 export * from "./deals.ts";
 export * from "./promo.ts";
 export * from "./payee.ts";

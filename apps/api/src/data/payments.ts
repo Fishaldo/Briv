@@ -115,8 +115,13 @@ export function paymentsFor(db: Database, personId: string, sealer: Sealer) {
     },
 
     /** Saved payments with this amount on this day, to ask before saving one twice. */
-    async sameDay(amount: number, spentOn: string): Promise<{ payment: Payment; shopName: string | null }[]> {
-      const rows = await db.select().from(payments).where(and(mine, eq(payments.amount, amount), eq(payments.spentOn, spentOn)));
+    /** Saved payments of exactly this amount on any of these days, for the already-saved check. */
+    async sameAmount(amount: number, days: string[]): Promise<{ payment: Payment; shopName: string | null }[]> {
+      if (days.length === 0) return [];
+      const rows = await db
+        .select()
+        .from(payments)
+        .where(and(mine, eq(payments.amount, amount), inArray(payments.spentOn, [...new Set(days)])));
       return rows.map((row) => ({ payment: publicPayment(row), shopName: row.shopName }));
     },
 

@@ -15,7 +15,7 @@ import { Button, Card, Field, List, Problem, Row, Screen, T } from "@/ui/kit";
 import { font, makeStyles, touch, useColors } from "@/ui/theme";
 
 type Line = { amount: number; spentOn: string; shopName: string; category: CategoryId; statement: string; keep: boolean };
-type Clash = { line: Line; saved: Payment; keepBoth: boolean | null };
+type Clash = { line: Line; saved: Payment; reason: "same-day" | "posted-later"; keepBoth: boolean | null };
 
 /**
  * A bank or card statement: a CSV from the banking app, or lines pasted from
@@ -102,7 +102,7 @@ export default function Statement() {
         },
       });
       count += res.saved;
-      for (const clash of res.clashes) found.push({ line: part[clash.index], saved: clash.saved, keepBoth: null });
+      for (const clash of res.clashes) found.push({ line: part[clash.index], saved: clash.saved, reason: clash.reason, keepBoth: null });
     }
     return { count, found };
   }
@@ -158,11 +158,15 @@ export default function Statement() {
     const answered = clashes.every((clash) => clash.keepBoth !== null);
     return (
       <Screen>
-        <PageHead title="Already saved?" sub={`${saved} saved. These look like payments already in ${APP_NAME}: same amount, shop and day.`} fallback="/add" />
+        <PageHead title="Already saved?" sub={`${saved} saved. These look like payments already in ${APP_NAME}. Saving both would count them twice.`} fallback="/add" />
         {clashes.map((clash, index) => (
           <Card key={`${clash.line.spentOn}-${clash.line.amount}-${index}`}>
             <T kind="strong">{`${clash.line.shopName || "Payment"} · ${pounds(clash.line.amount)} · ${dayText(clash.line.spentOn)}`}</T>
-            <T kind="small">{`Already saved as ${clash.saved.shopName ?? "a payment to a person"}.`}</T>
+            <T kind="small">
+              {clash.reason === "posted-later"
+                ? `Already saved as ${clash.saved.shopName ?? "a payment to a person"} on ${dayText(clash.saved.spentOn)}. Banks often show a payment a day or two later.`
+                : `Already saved as ${clash.saved.shopName ?? "a payment to a person"}.`}
+            </T>
             <View style={styles.choices}>
               <Button
                 label="Skip it"
